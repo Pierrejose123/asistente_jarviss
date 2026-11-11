@@ -1,0 +1,46 @@
+{
+  "periodo": "Semestre 2026-1",
+  "institucion": "Mi instituto",
+  "grupo": "A",
+  "modalidad": "virtual",
+  "fecha_inicio": "2026-10-12",
+  "fecha_fin": "2027-03-10",
+  "zona_horaria": "America/Guayaquil",
+  "avisos_minutos_antes": [
+    15,
+    5
+  ],
+  "clases": [
+    {
+      "codigo": "MAT-1",
+      "materia": "Matemáticas",
+      "docente": "Nombre del docente",
+      "dia": "lunes",
+      "inicio": "18:00",
+      "fin": "19:00",
+      "enlace": ""
+    },
+    {
+      "codigo": "ING-1",
+      "materia": "Inglés",
+      "docente": "Nombre del docente",
+      "dia": "miercoles",
+      "inicio": "19:00",
+      "fin": "20:00",
+      "enlace": ""
+    }
+  ],
+  "apertura_clase": {
+    "minutos_antes": 5,
+    "metodo_predeterminado": "teams",
+    "respaldo": "ruedge",
+    "url_ruedge_horario": "",
+    "nota": "Si la clase tiene 'enlace' (Teams) se abre la app de Teams; si está vacío, se abre 'url_ruedge_horario' (la página de horarios de su instituto), si la pone.",
+    "orden": [
+      "enlace_teams",
+      "calendario_teams",
+      "ruedge"
+    ]
+  },
+  "avisos_extra": []
+}

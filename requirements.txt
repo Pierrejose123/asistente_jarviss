@@ -1,0 +1,31 @@
+# Fase 1: Telegram, Google Calendar, recordatorios
+python-dotenv
+requests
+python-telegram-bot[job-queue]
+APScheduler
+google-api-python-client
+google-auth-httplib2
+google-auth-oauthlib
+winotify
+tzdata
+psutil
+
+# Fase 2: voz
+faster-whisper
+openwakeword
+sounddevice
+soundfile
+edge-tts
+numpy
+
+# Busqueda web
+ddgs
+
+# Bolsa: precios (Yahoo Finance) e informe de XTB (Excel)
+yfinance
+openpyxl
+
+# Biblioteca: PDF, Word y PowerPoint
+pypdf
+python-docx
+python-pptx

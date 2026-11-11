@@ -1,0 +1,12 @@
+{
+  "entrenamiento": {
+    "nombre": "Entrenamiento",
+    "dias": [
+      "lunes",
+      "miercoles",
+      "viernes"
+    ],
+    "hora": "19:00",
+    "texto": "Hora de su entrenamiento, señor."
+  }
+}

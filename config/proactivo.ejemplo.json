@@ -1,0 +1,31 @@
+{
+  "huecos_entre_semana": [
+    "19:00",
+    "22:00"
+  ],
+  "huecos_fin_de_semana": [
+    "09:00",
+    "19:00"
+  ],
+  "minutos_bloque": 60,
+  "max_bloques_nuevos_por_dia": 2,
+  "minutos_entreno": 45,
+  "palabras_de_tarea_larga": [
+    "proyecto",
+    "informe",
+    "video",
+    "ensayo",
+    "presentaci",
+    "portafolio",
+    "investigaci",
+    "examen",
+    "prueba",
+    "maqueta",
+    "animaci",
+    "afiche",
+    "cartel",
+    "storyboard"
+  ],
+  "aviso_clase_minutos": 20,
+  "dia_cargado_horas": 4
+}

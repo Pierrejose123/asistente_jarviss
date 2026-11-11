@@ -1,0 +1,15 @@
+{
+  "carpeta": "C:\\Users\\SU_USUARIO\\Documents\\Informacion IA\\Moodle",
+  "cada_horas": 6,
+  "max_mb": 60,
+  "extensiones": [
+    ".pdf",
+    ".docx",
+    ".pptx",
+    ".txt",
+    ".md"
+  ],
+  "paginas": true,
+  "cursos_extra": [],
+  "cursos_excluir": []
+}

@@ -1,0 +1,15 @@
+{
+  "nuevas_por_dia": 5,
+  "propuestas_por_dia": 5,
+  "maximo_repaso": 30,
+  "hora_respaldo": "21:45",
+  "nivel": "B1-B2",
+  "temas": [
+    "tecnología",
+    "trabajo y estudio",
+    "viajes",
+    "series y películas"
+  ],
+  "voz_ingles": "en-GB-RyanNeural",
+  "perfil_en": "an English learner"
+}

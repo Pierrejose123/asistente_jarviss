@@ -1,0 +1,22 @@
+{
+  "activado": true,
+  "juego": [
+    "League of Legends.exe",
+    "Palworld-Win64-Shipping.exe",
+    "Discovery.exe",
+    "FortniteClient-Win64-Shipping.exe"
+  ],
+  "diseno": [
+    "Photoshop.exe",
+    "Illustrator.exe",
+    "InDesign.exe",
+    "AfterFX.exe",
+    "Adobe Premiere Pro.exe",
+    "blender.exe",
+    "Figma.exe"
+  ],
+  "modelo_liviano": "qwen3.5:2b",
+  "segundos_para_volver": 60,
+  "hilos_procesador": 4,
+  "avisar_por_telegram": false
+}

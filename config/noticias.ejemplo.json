@@ -1,0 +1,161 @@
+{
+  "hora_entre_semana": "07:10",
+  "hora_fin_de_semana": "09:10",
+  "alerta_movimiento_pct": 5.0,
+  "alertas_eventos": true,
+  "por_empresa_yahoo": true,
+  "por_empresa_google": true,
+  "seguir_tambien": [],
+  "fuentes": [
+    {
+      "nombre": "BBC Mundo",
+      "url": "https://feeds.bbci.co.uk/mundo/rss.xml",
+      "tipo": "mundo"
+    },
+    {
+      "nombre": "El País Economía",
+      "url": "https://feeds.elpais.com/mrss-s/pages/ep/site/elpais.com/section/economia/portada",
+      "tipo": "economia"
+    },
+    {
+      "nombre": "Expansión Mercados",
+      "url": "https://e00-expansion.uecdn.es/rss/mercados.xml",
+      "tipo": "mercados"
+    },
+    {
+      "nombre": "Investing.com",
+      "url": "https://es.investing.com/rss/news.rss",
+      "tipo": "mercados",
+      "activa": false
+    },
+    {
+      "nombre": "CNBC",
+      "url": "https://www.cnbc.com/id/100003114/device/rss/rss.html",
+      "tipo": "mercados"
+    },
+    {
+      "nombre": "CNBC Economía",
+      "url": "https://www.cnbc.com/id/20910258/device/rss/rss.html",
+      "tipo": "economia"
+    },
+    {
+      "nombre": "MarketWatch",
+      "url": "https://feeds.content.dowjones.io/public/rss/mw_topstories",
+      "tipo": "mercados"
+    },
+    {
+      "nombre": "BBC World",
+      "url": "https://feeds.bbci.co.uk/news/world/rss.xml",
+      "tipo": "mundo"
+    },
+    {
+      "nombre": "BBC Business",
+      "url": "https://feeds.bbci.co.uk/news/business/rss.xml",
+      "tipo": "economia"
+    },
+    {
+      "nombre": "Google Tecnología",
+      "url": "https://news.google.com/rss/headlines/section/topic/TECHNOLOGY?hl=es-419&gl=US&ceid=US:es-419",
+      "tipo": "tecnologia",
+      "tema": "Tecnología"
+    },
+    {
+      "nombre": "Xataka",
+      "url": "https://feeds.weblogssl.com/xataka2",
+      "tipo": "tecnologia",
+      "tema": "Tecnología"
+    },
+    {
+      "nombre": "The Verge",
+      "url": "https://www.theverge.com/rss/index.xml",
+      "tipo": "tecnologia",
+      "tema": "Tecnología"
+    },
+    {
+      "nombre": "Google Mundo",
+      "url": "https://news.google.com/rss/headlines/section/topic/WORLD?hl=es-419&gl=US&ceid=US:es-419",
+      "tipo": "mundo"
+    },
+    {
+      "nombre": "Petróleo",
+      "url": "https://news.google.com/rss/search?q=petr%C3%B3leo+OR+OPEP+OR+Brent+OR+WTI+when:1d&hl=es-419&gl=US&ceid=US:es-419",
+      "tipo": "energia",
+      "tema": "Energía"
+    },
+    {
+      "nombre": "Oil",
+      "url": "https://news.google.com/rss/search?q=oil+prices+OR+OPEC+OR+crude+when:1d&hl=en-US&gl=US&ceid=US:en",
+      "tipo": "energia",
+      "tema": "Energía"
+    },
+    {
+      "nombre": "Cripto",
+      "url": "https://news.google.com/rss/search?q=bitcoin+OR+criptomonedas+OR+ethereum+when:1d&hl=es-419&gl=US&ceid=US:es-419",
+      "tipo": "cripto",
+      "tema": "Cripto"
+    },
+    {
+      "nombre": "CriptoNoticias",
+      "url": "https://www.criptonoticias.com/feed/",
+      "tipo": "cripto",
+      "tema": "Cripto"
+    },
+    {
+      "nombre": "CoinDesk",
+      "url": "https://www.coindesk.com/arc/outboundfeeds/rss/",
+      "tipo": "cripto",
+      "tema": "Cripto"
+    },
+    {
+      "nombre": "Ecuador",
+      "url": "https://news.google.com/rss?hl=es-419&gl=EC&ceid=EC:es-419",
+      "tipo": "ecuador",
+      "tema": "Ecuador"
+    },
+    {
+      "nombre": "Noboa",
+      "url": "https://news.google.com/rss/search?q=Noboa+when:2d&hl=es-419&gl=EC&ceid=EC:es-419",
+      "tipo": "ecuador",
+      "tema": "Ecuador"
+    },
+    {
+      "nombre": "Leyes Ecuador",
+      "url": "https://news.google.com/rss/search?q=Asamblea+Nacional+ley+OR+decreto+OR+Registro+Oficial+OR+SRI+impuesto+when:2d&hl=es-419&gl=EC&ceid=EC:es-419",
+      "tipo": "ecuador",
+      "tema": "Ecuador"
+    },
+    {
+      "nombre": "Trump",
+      "url": "https://news.google.com/rss/search?q=Trump+Truth+Social+OR+%22Trump+public%C3%B3%22+OR+%22Trump+anunci%C3%B3%22+when:1d&hl=es-419&gl=US&ceid=US:es-419",
+      "tipo": "politica",
+      "tema": "Trump"
+    },
+    {
+      "nombre": "Trump (EN)",
+      "url": "https://news.google.com/rss/search?q=Trump+Truth+Social+post+when:1d&hl=en-US&gl=US&ceid=US:en",
+      "tipo": "politica",
+      "tema": "Trump"
+    },
+    {
+      "nombre": "Leyes del dinero",
+      "url": "https://news.google.com/rss/search?q=ley+criptomonedas+OR+regulaci%C3%B3n+financiera+OR+ley+de+impuestos+OR+stablecoins+when:1d&hl=es-419&gl=US&ceid=US:es-419",
+      "tipo": "regulacion",
+      "tema": "Leyes y dinero"
+    },
+    {
+      "nombre": "Money laws",
+      "url": "https://news.google.com/rss/search?q=SEC+rule+OR+crypto+bill+OR+stablecoin+law+OR+tax+bill+when:1d&hl=en-US&gl=US&ceid=US:en",
+      "tipo": "regulacion",
+      "tema": "Leyes y dinero"
+    }
+  ],
+  "nombres": {
+    "META": "Meta Platforms",
+    "O": "Realty Income",
+    "KOF": "Coca-Cola Femsa",
+    "GOOG": "Alphabet",
+    "GOOGL": "Alphabet",
+    "JPM": "JPMorgan"
+  },
+  "version": 3
+}

@@ -1,0 +1,6 @@
+{
+  "modelo": "qwen3.5:9b",
+  "ollama": "http://127.0.0.1:11434",
+  "keep_alive": "10m",
+  "memoria": 12
+}

@@ -1,0 +1,27 @@
+{
+  "carpeta": "C:\\Users\\SU_USUARIO\\Documents\\Informacion IA",
+  "base": "C:\\Users\\SU_USUARIO\\Documents\\Informacion IA\\.biblioteca\\biblioteca.db",
+  "extensiones": [
+    ".txt",
+    ".srt",
+    ".md",
+    ".pdf",
+    ".docx",
+    ".pptx"
+  ],
+  "excluir": [
+    ".venv",
+    "modelos_whisper",
+    "cache_pip",
+    "temp",
+    ".biblioteca",
+    "__pycache__",
+    "node_modules"
+  ],
+  "max_mb": 60,
+  "largo_trozo": 1500,
+  "modelo_vectores": "nomic-embed-text",
+  "dimensiones": 256,
+  "trozos_para_responder": 6,
+  "umbral_contexto": 0.58
+}

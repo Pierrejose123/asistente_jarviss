@@ -1,0 +1,7 @@
+{
+  "por_pedido": 8,
+  "nuevas_por_dia": 10,
+  "maximo_repaso": 30,
+  "largo_material": 12000,
+  "aviso_en_bloque_de_estudio": true
+}

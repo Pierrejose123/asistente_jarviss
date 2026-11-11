@@ -1,0 +1,8 @@
+{
+  "proyecto": ".",
+  "datos_locales": "datos",
+  "logs": "logs",
+  "pesado": "datos_pesados",
+  "respaldos": "datos_pesados\\respaldos",
+  "informacion_ia": "C:\\Users\\SU_USUARIO\\Documents\\Informacion IA"
+}

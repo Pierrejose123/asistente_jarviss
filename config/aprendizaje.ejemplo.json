@@ -1,0 +1,30 @@
+{
+  "carpeta": "C:\\Users\\SU_USUARIO\\Documents\\Informacion IA\\transcripciones",
+  "autores": {
+    "cava": {
+      "nombre": "José Luis Cava",
+      "estilo": "técnico",
+      "palabras": [
+        "cava",
+        "kava",
+        "bolsacava",
+        "jose luis"
+      ]
+    },
+    "pablo": {
+      "nombre": "Pablo Gil",
+      "estilo": "macro y trading",
+      "palabras": [
+        "pablo gil",
+        "pablogil"
+      ]
+    }
+  },
+  "largo_trozo": 3000,
+  "dias_vigencia_analisis": 90,
+  "solo_de_noche": false,
+  "noche": [
+    "23:00",
+    "07:00"
+  ]
+}

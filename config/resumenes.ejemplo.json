@@ -1,0 +1,9 @@
+{
+  "matutino": {
+    "entre_semana": "07:00",
+    "fin_de_semana": "09:00"
+  },
+  "nocturno": {
+    "hora": "22:00"
+  }
+}

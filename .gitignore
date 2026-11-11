@@ -1,0 +1,23 @@
+# Secretos: NUNCA subir
+.env
+credenciales/
+*.token.json
+token.json
+client_secret*.json
+
+# Su configuración real (se publica solo la de ejemplo: config/*.ejemplo.json)
+config/*.json
+!config/*.ejemplo.json
+
+# Entornos y cache de Python
+.venv/
+__pycache__/
+*.pyc
+
+# Datos y registros locales
+datos/
+datos_pesados/
+mis_documentos/
+logs/
+*.antes_*
+*.respaldo

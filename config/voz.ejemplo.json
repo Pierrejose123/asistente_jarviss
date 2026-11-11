@@ -1,0 +1,14 @@
+{
+  "microfono": "",
+  "whisper": "auto",
+  "whisper_dispositivo": "auto",
+  "umbral_activacion": 0.5,
+  "segundos_seguimiento": 6,
+  "voz": "es-ES-AlvaroNeural",
+  "velocidad": "-5%",
+  "tono": "-6Hz",
+  "copiar_a_telegram": true,
+  "efecto": "jarvis",
+  "intensidad_efecto": 0.9,
+  "vocabulario": []
+}
