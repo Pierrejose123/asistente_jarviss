@@ -38,8 +38,8 @@ fechas) los hace el código.
 En PowerShell:
 
 ```powershell
-git clone https://github.com/pierrejose123/asistente-jarvis.git
-cd asistente-jarvis
+git clone https://github.com/pierrejose123/asistente_jarviss.git
+cd asistente_jarviss
 python -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
 .\.venv\Scripts\python.exe instalar.py
