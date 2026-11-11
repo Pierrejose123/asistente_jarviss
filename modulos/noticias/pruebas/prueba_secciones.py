@@ -157,7 +157,6 @@ with noticias._con() as con:
 alertas_msgs = noticias.alertas_eventos()
 ok(len(alertas_msgs) == 1 and alertas_msgs[0].count("⚡") == 2, "alertas en un mensaje: " + str(alertas_msgs))
 
-print(plano)
 print("Casos:", total)
 if fallos:
     print("\nFALLOS:", len(fallos))
