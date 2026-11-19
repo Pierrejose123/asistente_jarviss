@@ -12,6 +12,8 @@
     "cuanto me debe Juan"  "quien me debe"  "cuanto le debo a mi tio"  "mis deudas"
   Lo demas lo resuelve la IA con las herramientas registrar_deuda / registrar_pago_deuda / ver_deudas.
 - Las cuentas las hace el codigo: saldo = cargos - pagos.
+- v2.4 (11-11): cambiar el nombre con frases libres («la deuda de la empresa cambia el nombre por Meraki»,
+  «ponle Meraki a la empresa», «que la empresa se llame Meraki», «cámbiale el nombre a Meraki»): _interpretar_renombrar.
 """
 import re
 import shutil
@@ -525,13 +527,136 @@ RECUPERAR = re.compile(r"^(?:recupera|recuperar|restaura|restaurar|vuelve a pone
 _ULTIMA = {}                                       # lo último que se anotó (para «elimina ese»)
 NOMBRE_X = r"((?:el |la |los |las |mi |mis |don |dona )?[a-z\u00f10-9][a-z\u00f10-9&.-]*(?:\s+[a-z\u00f10-9&.-]+){0,3}?)"
 RENOMBRAR = [
-    re.compile(r"^(?:cambia|cambiar|cambiale|cambiame|renombra|renombrar|corrige|corregir|reemplaza|reemplazar|pon|ponle|"
+    re.compile(r"^(?:cambia|cambiar|cambiale|cambiame|renombra|renombrar|corrige|corregir|reemplaza|reemplazar|"
                r"actualiza)\s+(?:el nombre\s+(?:de|del deudor|de la deuda de|de la cuenta de)\s+)?(?:a\s+)?" + NOMBRE_X +
                r"\s+(?:por|a|como|con el nombre(?: de)?|y ponle|y pon)\s+" + NOMBRE_X + r"$"),
     re.compile(r"^" + NOMBRE_X + r"\s+(?:ahora\s+)?(?:se llama|es|sera)\s+(?:ahora\s+)?" + NOMBRE_X + r"$"),
     re.compile(r"^(?:no es|no era|no se llama)\s+" + NOMBRE_X + r",?\s+(?:es|era|se llama|sino)\s+" + NOMBRE_X + r"$"),
     re.compile(r"^(?:el deudor|la deudora|el nombre)\s+" + NOMBRE_X + r"\s+(?:es|cambia a|pasa a ser|ahora es)\s+" + NOMBRE_X + r"$"),
 ]
+
+# --- v2.4 (11-11): renombrar con frases libres -------------------------------------------------------------
+# «la deuda de la empresa cambia el nombre por Meraki» no entraba en RENOMBRAR (el deudor iba primero).
+# Ahora: 1) hay intención clara de cambiar el nombre; 2) se busca en la frase un deudor que YA existe;
+# 3) se quita ese deudor y las palabras de relleno, y lo que queda es el nombre nuevo.
+INTENCION_NOMBRE = re.compile(                     # intención CLARA de cambiar un nombre (no «llamar a Juan»)
+    r"\bnombre\b|\brenombr\w*|\bse llame\b|\bse llamara\b|\bse va a llamar\b|\bva a llamarse\b|\ba llamarse\b|"
+    r"\bllamarse\b|\bahora se llama\b|\ben realidad se llama\b|\brealmente se llama\b|\bse llama\b|\bbautiza\w*")
+PONLE = re.compile(r"^(?:ponle|ponerle|pongale|pon|ponme)\s+")               # «ponle Meraki a la empresa»
+LLAMA = re.compile(r"^(?:llama|llamale|llamala|llamalo|bautiza|bautizala|bautizalo)\s+")
+_V_REN = (r"cambia|cambiale|cambiar|cambiarle|cambiame|cambiamelo|cambiala|cambialo|renombra|renombrala|renombralo|renombrar|"
+          r"renombrale|pon|ponle|ponerle|pongale|ponme|reemplaza|reemplazale|reemplazar|actualiza|actualizale|actualizar|"
+          r"modifica|modificale|modificar|corrige|corrigele|corregir|edita|editale|editar|llama|llamale|llamala|llamalo|"
+          r"bautiza|bautizala|bautizalo|quiero que|quiero|necesito que|puedes|podrias|que|ahora|mejor|y|ya|tambien|"
+          r"por favor|porfa|ok|listo|entonces|bueno|oye|le|se lo|se la|en realidad|realmente|de verdad|la verdad|"
+          r"en verdad|al final|mas bien|me equivoque|perdon|corrijo")
+_OBJ_REN = (r"el nombre|nombre|de nombre|como nombre|por nombre|el nombre del deudor|el nombre de la deuda|"
+            r"la deuda|esa deuda|esta deuda|la cuenta|esa cuenta|el deudor|la deudora|esa|ese|eso|esto|"
+            r"el registro|lo")
+_CON_REN = (r"por|a|al|como|en|para|de|del|con|que diga|que se llame|se llame|se llamara|se va a llamar|"
+            r"va a llamarse|pase a llamarse|pasa a llamarse|a llamarse|llamarse|ahora se llama|se llama|"
+            r"ahora es|ahora sea|que sea|sea|es|sera|pasa a ser|cambia a|cambie a|y ponle|y pon|:|=|->|→")
+_INI_REN = re.compile(r"^(?:(?:" + _V_REN + r"|" + _OBJ_REN + r"|" + _CON_REN + r")(?:\s+|$))+")
+_FIN_REN = re.compile(r"(?:\s+(?:ahora|mejor|por favor|porfa|gracias|desde ahora|de ahora en adelante|a partir de ahora|"
+                      r"en vez de eso|nada mas|y ya|ok|senor|jarvis|en la lista|en mis deudas|en la deuda))+$")
+_PEGA_DEUDOR = (r"(?:(?:a|de|del|con|para|en|lo de|a lo de)\s+)?(?:(?:la deuda|las deudas|la cuenta|el deudor|lo que me debe|"
+                r"lo que le debo a|lo que debo a|lo que me deben)\s+)?(?:(?:de|del|de la|con|con la|que tiene|a)\s+)?")
+
+
+def _deudores_en(t):
+    """Deudores que YA existen (no borrados) nombrados en la frase, el más largo primero: [(deuda, inicio, fin)]."""
+    with closing(_con()) as con:
+        filas = [dict(f) for f in con.execute("SELECT * FROM deudas WHERE estado != 'borrada' ORDER BY id DESC")]
+    hallados, ocupado = [], []
+    for f in sorted(filas, key=lambda x: (-len(_norm(x["persona"])), x["estado"] != "abierta", -x["id"])):
+        nombre = _norm(f["persona"]).rstrip(".")
+        variantes = {nombre}
+        for art in ARTICULOS:                       # «la empresa» también se reconoce como «empresa»
+            if nombre.startswith(art):
+                variantes.add(nombre[len(art):])
+        for v in sorted(variantes, key=len, reverse=True):
+            if len(v) < 2:
+                continue
+            for m in re.finditer(r"(?<![\w.])" + re.escape(v) + r"(?![\w])", t):
+                if any(a < m.end() and m.start() < b for a, b in ocupado):
+                    continue
+                ocupado.append((m.start(), m.end()))
+                hallados.append((f, m.start(), m.end()))
+    return sorted(hallados, key=lambda x: x[1])
+
+
+def _nombre_nuevo_limpio(resto):
+    resto = " ".join(resto.replace(",", " , ").split())
+    resto = re.sub(r"\s*,\s*", " ", resto).strip(" .,;:!")
+    anterior = None
+    while anterior != resto:
+        anterior = resto
+        resto = _INI_REN.sub("", resto).strip(" .,;:")
+        resto = _FIN_REN.sub("", resto).strip(" .,;:")
+    resto = re.sub(r"^(?:el|la|los|las)\s+nombre\s+", "", resto).strip()
+    return resto
+
+
+NO_ES_NOMBRE = re.compile(r"^(?:un|una|unos|unas|otro|otra)\b|\b(?:alerta|recordatorio|nota|tarea|aviso|alarma|fecha|limite|"
+                          r"plazo|cuota|motivo|concepto|pago|abono|monto|saldo|interes|mensaje|llamada|cita|evento|foto|"
+                          r"captura|comprobante|debe|deben|debo|deuda|deudas|pague|pagar|cobrar|cuanto|cual|quien|que|"
+                          r"recuerdame|avisame|mañana|manana|hoy|ayer|despues|luego|telefono|correo|whatsapp|asi|igual|eso|esto)\b")
+SIN_DEUDOR = re.compile(r"^(?:(?:" + _V_REN + r")\s+)*(?:a\s+|de\s+)?(?:(?:la|esa|esta)\s+deuda\s+|(?:la|esa)\s+cuenta\s+)?"
+                        r"(?:(?:" + _V_REN + r")\s+)*(?:el\s+)?nombre(?:\s+(?:de|a)\s+(?:la|esa|esta)\s+(?:deuda|cuenta))?"
+                        r"\s+(?:a|por|como|en|que sea)\s+(.+)$")
+def _nombre_raro(nuevo):
+    """¿El «nombre nuevo» en realidad es otra cosa? («así por su abuelo», «una alerta», «mañana»)."""
+    return bool(len(nuevo.split()) > 5 or nuevo in NO_PERSONA or nuevo in MESES or NO_ES_NOMBRE.search(nuevo)
+                or (re.search(r"\s(?:a|al|por|para|que|como)\s", " " + nuevo + " ")
+                    and not re.match(r"^(?:el|la|los|las|mi|mis)\s", nuevo)))
+
+
+SIN_DEUDOR_2 = re.compile(r"^(?:ponle|pon|ponerle|pongale)\s+(?:(?:de|como|por)\s+)?(?:el\s+)?nombre\s+(.+)$|"
+                          r"^(?:ponle|pon|ponerle|pongale)\s+(.+?)\s+(?:de|como|por)\s+nombre$")
+PREGUNTA_NOMBRE = re.compile(r"^(?:como|cual|que|quien|cuales|sabes|dime|recuerdas)\b|\bcomo se llama\b|\bcual es el nombre\b")
+
+
+def _interpretar_renombrar(t):
+    """Frases libres para cambiar el nombre de un deudor que ya existe. -> dict, o None si no es renombrar."""
+    if re.search(NUM, t) and not re.search(r"\bnombre\b|\brenombr", t):
+        return None                                 # con montos y sin «nombre» es otra cosa (cambios de saldo)
+    if PREGUNTA_NOMBRE.search(t) and not re.match(r"^(?:que|quiero que)\s+\S+.*\bse llam", t):
+        return None                                 # «¿cómo se llama la empresa?» es una pregunta, no un cambio
+    intencion = INTENCION_NOMBRE.search(t)
+    hallados = _deudores_en(t)
+    viejo, resto = None, t
+    if hallados:
+        viejo = hallados[0]          # si nombra dos que existen («cambia la empresa por Meraki»), el viejo es el primero
+        if len(hallados) > 1 and (PONLE.match(t) or LLAMA.match(t)) and hallados[-1][2] == len(t):
+            viejo = hallados[-1]     # «ponle Juan Pérez a Juan» / «llama Meraki a la empresa»: el del final
+        _f, ini, fin = viejo
+        antes, despues = t[:ini], t[fin:]
+        if not intencion:            # sin «nombre»/«se llame»: solo «ponle/llama Y a X» o «a X ponle Y»
+            final = not despues.strip() and re.search(r"\sa\s+" + r"(?:(?:la|esa) deuda (?:de|del|de la)\s+|lo de\s+)?$", " " + antes)
+            al_inicio = re.match(r"^(?:a|a la deuda de|a la deuda del|a lo de)\s*$", antes.strip() + " " if antes.strip() else "") \
+                and (PONLE.match(despues.strip()) or LLAMA.match(despues.strip()))
+            if not ((PONLE.match(t) or LLAMA.match(t)) and final) and not al_inicio:
+                return None
+        antes = re.sub(r"(?:^|\s)" + _PEGA_DEUDOR + r"$", " ", " " + antes)   # «a la deuda de», «el nombre de» → fuera el pegamento
+        resto = (antes + " " + despues).strip()
+        nuevo = _nombre_nuevo_limpio(resto)
+    else:
+        if not intencion:
+            return None
+        m = SIN_DEUDOR.match(t) or SIN_DEUDOR_2.match(t)   # «cámbiale el nombre a Meraki», «ponle de nombre Meraki»
+        nuevo = _nombre_nuevo_limpio(next(g for g in m.groups() if g)) if m else ""
+        if not m:
+            return ({"accion": "renombrar_falta", "persona": None} if re.search(r"\bdeuda|\bdeudor", t)
+                    and re.search(r"\bnombre\b|\brenombr", t) else None)
+    malo = (not nuevo or (re.search(r"\d", nuevo) and not re.search(r"\bnombre\b|\brenombr", t))
+            or _nombre_raro(nuevo) or (viejo and _norm(nuevo) == _norm(viejo[0]["persona"]).rstrip(".")))
+    if malo:
+        if re.search(r"\bnombre\b|\brenombr", t) and (hallados or re.search(r"\bdeuda|\bdeudor", t)):
+            return {"accion": "renombrar_falta", "persona": viejo[0]["persona"] if viejo else None}
+        return None
+    if viejo:
+        return {"accion": "renombrar", "persona": viejo[0]["persona"], "did": viejo[0]["id"], "nuevo": nuevo}
+    return {"accion": "renombrar", "persona": None, "did": None, "nuevo": nuevo}   # la única deuda o la última que tocó
 
 
 FUERTE = re.compile(r"\b(?:debe|deben|debo|debia|debian|debiendo|deuda|deudas|adeud\w*|prest\w*|por cobrar|cobrarle|"
@@ -593,12 +718,15 @@ def _interpretar(texto):
     cambio = _interpretar_cambio(t)                # «cambia la deuda de Juan a 400», «súbele 50 a Juan», «septiembre fue 700»…
     if cambio:
         return cambio
+    ren = _interpretar_renombrar(t)                # v2.4: «la deuda de la empresa cambia el nombre por Meraki», «ponle Meraki a…»
+    if ren:
+        return ren
     for patron in RENOMBRAR:                       # «cambia Jaspharm por Meraki»: solo si el primero ya tiene deuda
         m = patron.match(t)
         if m:
-            viejo, nuevo = _recortar_persona(m.group(1)), m.group(2).strip(" .,")
+            viejo, nuevo = _recortar_persona(m.group(1)), _nombre_nuevo_limpio(m.group(2).strip(" .,"))
             if viejo and nuevo and _norm(viejo) != _norm(nuevo) and not re.search(r"\d", nuevo) and \
-                    [x for x in _todas(_nombre_bonito(viejo))]:
+                    not _nombre_raro(nuevo) and [x for x in _todas(_nombre_bonito(viejo))]:
                 return {"accion": "renombrar", "persona": viejo, "nuevo": nuevo}
     m = RECUPERAR.match(t)
     if m and re.search(r"deuda|me debe|le debo|cuenta", t):
@@ -1049,12 +1177,32 @@ def ejecutar(d):
                 "Si fue un error: «recupera la deuda de " + ds[0]["persona"] + "».")
     if a == "cambiar":
         return ejecutar_cambio(d)
+    if a == "renombrar_falta":
+        quien = d.get("persona") or "la empresa"
+        return ("Entendí que quiere cambiar un nombre, pero no qué nombre nuevo poner. Escríbalo así: "
+                "«cambia el nombre de " + quien + " a Meraki».")
     if a == "renombrar":
-        viejas = _todas(_nombre_bonito(d["persona"]))
+        if d.get("did"):                           # v2.4: el deudor ya se encontró en la frase
+            base = obtener(d["did"])
+            viejas = _todas(base["persona"]) if base else []
+            viejas = [x for x in viejas if _norm(x["persona"]) == _norm(base["persona"])] or ([base] if base else [])
+        elif d.get("persona"):
+            viejas = _todas(_nombre_bonito(d["persona"]))
+        else:                                      # «cámbiale el nombre a Meraki»: la única deuda o la última que tocó
+            deuda, error = _resolver_deuda(None)
+            if error:
+                return error.replace("«cambia la deuda de", "«cambia el nombre de").replace(" a 400»", " a " + d["nuevo"] + "»")
+            viejas = [x for x in _todas(deuda["persona"]) if _norm(x["persona"]) == _norm(deuda["persona"])] or [deuda]
         if not viejas:
-            return "No encuentro una deuda de " + _nombre_bonito(d["persona"]) + "."
+            return "No encuentro una deuda de " + _nombre_bonito(d["persona"] or "") + "."
         nuevo = d["nuevo"].strip()
         nuevo = nuevo[:1].upper() + nuevo[1:] if not re.match(r"(?:el|la|los|las|mi|mis) ", nuevo.lower()) else nuevo
+        ids = {x["id"] for x in viejas}
+        choca = [x for x in abiertas() if _norm(x["persona"]) == _norm(nuevo) and x["id"] not in ids]
+        if choca:                                  # ya hay otra deuda abierta con ese nombre: no mezclar sin permiso
+            return ("Ya existe otra deuda abierta a nombre de «" + choca[0]["persona"] + "» (" + fmt(saldo(choca[0]["id"]))
+                    + "). No cambié nada para no mezclar dos cuentas. Si es la misma, borre una primero («borra la deuda de "
+                    + choca[0]["persona"] + "») o use otro nombre.")
         with closing(_con()) as con, con:
             for x in viejas:
                 con.execute("UPDATE deudas SET persona = ? WHERE id = ?", (nuevo, x["id"]))
@@ -1064,6 +1212,8 @@ def ejecutar(d):
             except Exception:
                 pass
         total = sum(saldo(x["id"]) for x in viejas if x["estado"] == "abierta")
+        _ULTIMA.clear()                                # «mejor ponle Meraki S.A.» justo después usa esta misma deuda
+        _ULTIMA.update(deuda=viejas[0]["id"], tipo="cambio", cuando=ahora().timestamp(), movimientos=[])
         return ("✏️ Listo: «" + viejas[0]["persona"] + "» ahora se llama «" + nuevo + "»"
                 + (" (" + str(len(viejas)) + " cuentas)" if len(viejas) > 1 else "") + ". "
                 + (_cap(nuevo) + (" le debe " if viejas[0]["sentido"] == "me_debe" else ": usted le debe ") + fmt(total) + "."

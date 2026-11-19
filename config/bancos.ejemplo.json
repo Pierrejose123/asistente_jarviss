@@ -1,0 +1,9 @@
+{
+  "_nota": "Copie este archivo como config/bancos.json y ponga los remitentes reales de SU banco (búsqueda de Gmail).",
+  "busqueda_estados": "(from:estados@example.com \"Estado de cuenta\") OR (from:otro-banco.com \"Estado de Cuenta\")",
+  "busqueda_pagos": "from:su-tarjeta.com \"Agradecemos su pago\"",
+  "busqueda_diferido": "from:su-banco.com \"Tu diferido fue realizado\"",
+  "remitentes_estado": {
+    "estados.su-tarjeta.com": "Diners"
+  }
+}

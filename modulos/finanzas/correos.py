@@ -29,7 +29,8 @@ PERMISOS = ["https://www.googleapis.com/auth/gmail.readonly"]
 BUSQUEDA = ('("Realizaste una compra con tu Diners" OR "Has realizado un consumo" OR '
             '"Consumo Tarjeta de Crédito Produbanco" OR "consumo con tu Tarjeta de Crédito" OR '
             '"reverso de un consumo" OR "Reverso Consumo" OR "anulación de consumo" OR "anulación de compra" OR '
-            '"devolución de consumo" OR "devolución de compra" OR "reembolso de consumo")')
+            '"devolución de consumo" OR "devolución de compra" OR "reembolso de consumo" OR "ha sido anulada" OR '
+            '"Notificación anulación")')
 REVERSO = re.compile(r"\b(?:reverso|reversion|reversado|anulacion|anulado|anulada|devolucion|reembolso|extorno)\b")
 MESES = {"enero": 1, "febrero": 2, "marzo": 3, "abril": 4, "mayo": 5, "junio": 6, "julio": 7, "agosto": 8,
          "septiembre": 9, "setiembre": 9, "octubre": 10, "noviembre": 11, "diciembre": 12}
@@ -166,6 +167,10 @@ def leer_produbanco(texto):
 def leer_generico(texto):
     """Para reversos de bancos cuyo formato aún no conocemos: 'Valor' y 'Establecimiento'/'Comercio'."""
     plano = " ".join(texto.split())
+    m = re.search(r"monto de\s*((?:[A-Z]{3}|\$)?\s*[\d.,]+)\s+el\s+(\d{4}-\d{2}-\d{2}(?:\s+\d{1,2}:\d{2})?)\s+en\s+(.+?)\s+ha sido anulad",
+                  plano, re.I)                                   # Diners: «…por un monto de USD 20.00 el 2026-10-14 13:27 en X ha sido anulada»
+    if m:
+        return {"fecha": _fecha_iso(m.group(2)), "comercio": m.group(3), "monto": _monto(m.group(1)), "moneda": _moneda(m.group(1))}
     valor = re.search(r"(?:Valor|Monto|Importe)\s*:?\s*((?:[A-Z]{3}|\$)?\s*[\d.,]+)", plano, re.I)
     comercio = re.search(r"(?:Establecimiento|Comercio)\s*:?\s*(.+?)(?:\s+(?:Atentamente|Fecha|Valor|Monto|Tarjeta)\b|$)", plano, re.I)
     fecha = re.search(r"Fecha(?:\s+y\s+Hora)?\s*:?\s*([^\s]+(?:\s+\d{1,2}:\d{2})?)", plano, re.I)
@@ -456,6 +461,14 @@ def procesar_reverso(banco, texto, asunto, ref, fecha_correo):
     if datos.get("moneda", "USD") != "USD":
         monto = a_usd(monto, datos["moneda"], fecha)[0] or monto
     consumo, tipo = buscar_consumo(monto, comercio, medio, fecha, ref)
+    if not consumo:                                   # un avance que quedó esperando respuesta (pendiente) y se anuló
+        with closing(gastos._con()) as con, con:
+            p = con.execute("SELECT * FROM gastos_pendientes WHERE estado = 'pendiente' AND abs(monto - ?) < 0.011 "
+                            "AND fecha >= ? AND fecha <= ?", (monto, (fecha - timedelta(days=3)).isoformat(),
+                                                             (fecha + timedelta(days=1)).isoformat())).fetchone()
+            if p:
+                con.execute("UPDATE gastos_pendientes SET estado = 'descartado' WHERE id = ?", (p["id"],))
+                tipo = "pendiente"
     if consumo and tipo == "total":
         gastos.cambiar(consumo["id"], estado="anulado")
     elif consumo:
@@ -479,6 +492,8 @@ def texto_reverso(d):
         return base + "\nQuité ese consumo de sus gastos y del presupuesto."
     if d["tipo"] == "parcial":
         return base + "\nEra parte de un consumo mayor: lo dejé en " + fmt(d["restante"]) + "."
+    if d["tipo"] == "pendiente":
+        return base + "\nEra un avance que aún no me había respondido: ya no le pregunto por él."
     return (base + "\nNo encontré ese consumo en sus gastos (quizá fue un cobro de verificación de la app o es de "
             "hace más de 30 días). No cambié nada.")
 

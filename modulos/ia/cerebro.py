@@ -888,11 +888,47 @@ def _consulta_directa(texto, ver_dia):
     return ejecutar("ver_dia", {"fecha": m.group() if m else "hoy"}, ver_dia)[0]
 
 
-def responder(texto, historial=None, ver_dia=None, canal="telegram"):
-    """Devuelve (respuesta, acciones_pendientes). La conversacion se guarda en la base (sobrevive reinicios)."""
+def responder(texto, historial=None, ver_dia=None, canal="telegram", sin_ia=False):
+    """Devuelve (respuesta, acciones_pendientes). La conversacion se guarda en la base (sobrevive reinicios).
+    sin_ia=True (lo usa Claude por MCP): solo los módulos exactos; si ninguno responde devuelve (None, [])."""
     conf = config()
     ULTIMAS.clear()
     directo = _unir_pedido(texto)
+    claude = canal == "claude"                # Claude por MCP: sin módulos que usan la IA local (equipo, empresa, biblioteca)
+    if not directo and not claude:
+        try:                                  # equipo de agentes: «equipo: …», «que el equipo …», quejas «no era eso»
+            from modulos.equipo import equipo
+            r_eq = equipo.procesar(texto)
+            if isinstance(r_eq, dict):
+                from modulos.equipo import telegram_equipo
+                directo = telegram_equipo.lanzar(r_eq)
+            elif r_eq:
+                directo = r_eq
+        except Exception as exc:
+            log.warning("Equipo fallo: %s", exc)
+    if not directo:
+        try:                                  # segundo cerebro: «idea: …», «decidí …», «aprendí que …» (frases claras)
+            from modulos.segundo_cerebro import segundo_cerebro
+            directo = segundo_cerebro.procesar(texto, canal)
+        except Exception as exc:
+            log.warning("Segundo cerebro (captura) fallo: %s", exc)
+    if not directo:
+        try:                                  # hábitos y sueño: «agua», «leí», «fui a fisio», «me voy a dormir», «cómo dormí»
+            from modulos.vida import habitos_vida, sueno
+            directo = habitos_vida.procesar(texto, canal) or sueno.procesar(texto)
+        except Exception as exc:
+            log.warning("Hábitos o sueño fallo: %s", exc)
+    if not directo and not claude:
+        try:                                  # empresa de IA: «qué hay de nuevo en IA», «hazme un post sobre…», competidores
+            from modulos.empresa import empresa
+            r_emp = empresa.procesar(texto)
+            if isinstance(r_emp, dict):
+                from modulos.empresa import telegram_empresa
+                directo = telegram_empresa.lanzar(r_emp)
+            elif r_emp:
+                directo = r_emp
+        except Exception as exc:
+            log.warning("Empresa fallo: %s", exc)
     if not directo:
         try:                                  # alertas de precio y diario de decisiones (antes que gastos y noticias)
             from modulos.alertas import alertas
@@ -918,7 +954,7 @@ def responder(texto, historial=None, ver_dia=None, canal="telegram"):
         try:                                  # lo aprendido de los videos: "¿qué dice Pepe de META?", /reglas, autor N
             from modulos.aprendizaje import aprendizaje
             directo = aprendizaje.procesar(texto)
-            if not directo:                   # biblioteca: «según mis videos…», «resúmeme el video de…»
+            if not directo and not claude:    # biblioteca: «según mis videos…», «resúmeme el video de…»
                 from modulos.biblioteca import biblioteca
                 directo = biblioteca.procesar(texto, canal)
         except Exception as exc:
@@ -932,6 +968,15 @@ def responder(texto, historial=None, ver_dia=None, canal="telegram"):
                 directo = noticias.procesar(texto, canal)
         except Exception as exc:
             log.warning("Cava o noticias fallo: %s", exc)
+    if not directo:
+        try:                                  # saldo de sus cuentas del banco («saldo pichincha 405», «mi saldo»)
+            from modulos.finanzas import cuentas
+            directo = cuentas.procesar(texto)
+            if not directo:                   # diferidos, «¿me alcanza … a 6 meses?», fechas de pago de tarjetas
+                from modulos.finanzas import tarjetas
+                directo = tarjetas.procesar(texto)
+        except Exception as exc:
+            log.warning("Cuentas o tarjetas fallo: %s", exc)
     if not directo:
         try:                                  # deudas: las frases comunes las resuelve el codigo (exacto)
             from modulos.finanzas import deudas
@@ -947,6 +992,12 @@ def responder(texto, historial=None, ver_dia=None, canal="telegram"):
                 directo = gastos.procesar(texto, "voz" if canal == "voz" else "telegram")
         except Exception as exc:
             log.warning("Finanzas fallo: %s", exc)
+    if not directo:
+        try:                                  # segundo cerebro: «qué ideas tengo del negocio», «anota que …» suelto
+            from modulos.segundo_cerebro import segundo_cerebro
+            directo = segundo_cerebro.procesar(texto, canal, final=True)
+        except Exception as exc:
+            log.warning("Segundo cerebro (consulta) fallo: %s", exc)
     if not directo and conf.get("modo_ligero") and ver_dia:
         directo = _consulta_directa(texto, ver_dia)
         if directo:
@@ -954,6 +1005,8 @@ def responder(texto, historial=None, ver_dia=None, canal="telegram"):
     if directo:
         memoria.guardar_turno(texto, directo)
         return directo, []
+    if sin_ia:
+        return None, []
     sistema = _sistema() + ("\n\n" + VOZ.replace("senor", "se\u00f1or") if canal == "voz" else "")
     sistema += ("\n\nCONOCIMIENTO GENERAL: si el usuario pregunta algo de cultura general, ciencia, tecnologia, diseno, "
                 "historia o como hacer algo, responde con tu conocimiento, claro y util. 'No tengo registrado' solo vale "
@@ -966,6 +1019,8 @@ def responder(texto, historial=None, ver_dia=None, canal="telegram"):
         sistema += aprendizaje.contexto(texto)
         from modulos.biblioteca import biblioteca
         sistema += biblioteca.contexto(texto)
+        from modulos.segundo_cerebro import segundo_cerebro
+        sistema += segundo_cerebro.contexto(texto)
         from modulos.noticias import noticias
         sistema += noticias.contexto_ia(texto)
     except Exception as exc:

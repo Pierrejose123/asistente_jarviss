@@ -39,6 +39,11 @@ from modulos.noticias import telegram_noticias  # noqa: E402
 from modulos.alertas import telegram_alertas  # noqa: E402
 from modulos.comun import telegram_salud  # noqa: E402
 from modulos.proactivo import telegram_proactivo  # noqa: E402
+from modulos.segundo_cerebro import telegram_cerebro  # noqa: E402
+from modulos.vida import telegram_vida  # noqa: E402
+from modulos.empresa import telegram_empresa  # noqa: E402
+from modulos.equipo import telegram_equipo  # noqa: E402
+from modulos.clientes import telegram_mediacion  # noqa: E402
 from modulos.comun.base import (DIAS, DIAS_BONITO, TOKEN, USER_ID, ZONA, ahora,  # noqa: E402
                                 leer_json, registro)
 
@@ -67,7 +72,7 @@ COMANDOS = [
     ("olvidar", "Reiniciar el hilo de la conversaci\u00f3n"),
     ("ayuda", "Lista de comandos"),
 ]
-COMANDOS[-1:-1] = telegram_alertas.COMANDOS + telegram_salud.COMANDOS + telegram_proactivo.COMANDOS + telegram_noticias.COMANDOS + telegram_cava.COMANDOS + telegram_finanzas.COMANDOS + telegram_moodle.COMANDOS + telegram_ingles.COMANDOS + telegram_portafolio.COMANDOS      # antes de /ayuda
+COMANDOS[-1:-1] = telegram_alertas.COMANDOS + telegram_salud.COMANDOS + telegram_proactivo.COMANDOS + telegram_noticias.COMANDOS + telegram_cava.COMANDOS + telegram_finanzas.COMANDOS + telegram_moodle.COMANDOS + telegram_ingles.COMANDOS + telegram_portafolio.COMANDOS + telegram_cerebro.COMANDOS + telegram_vida.COMANDOS + telegram_empresa.COMANDOS + telegram_equipo.COMANDOS + telegram_mediacion.COMANDOS      # antes de /ayuda
 
 
 MARCA = {"": "", "movida": " <i>(movida)</i>", "cancelada": " <s>cancelada</s>"}
@@ -486,6 +491,11 @@ async def texto_libre(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def atender_texto(update: Update, context: ContextTypes.DEFAULT_TYPE, texto):
     """Responde un texto (escrito o de una nota de voz). Devuelve la respuesta, o None si no hubo."""
+    try:                                                   # demo del centro de mediación («modo mediación»)
+        if await telegram_mediacion.intentar(update, texto):
+            return None
+    except Exception as exc:
+        log.warning("Mediación falló: %s", exc)
     if texto.lower().strip(".!\u00a1 ") in CONFIRMACIONES and not cerebro.memoria.historial(1):
         await update.message.reply_text("Perfecto, se\u00f1or. Quedo atento.")
         return None
@@ -561,6 +571,10 @@ async def al_iniciar(app: Application):
     telegram_alertas.programar(app.job_queue)
     telegram_salud.programar(app.job_queue)
     telegram_proactivo.programar(app.job_queue)
+    telegram_cerebro.programar(app.job_queue)
+    telegram_vida.programar(app.job_queue)
+    telegram_empresa.programar(app.job_queue)
+    telegram_equipo.programar(app.job_queue)
     await app.bot.send_message(USER_ID, "\U0001F7E2 Asistente en l\u00ednea, se\u00f1or. Escriba /ayuda.")
     log.info("Bot iniciado")
 
@@ -598,6 +612,11 @@ def main():
     telegram_alertas.registrar(app)
     telegram_salud.registrar(app)
     telegram_proactivo.registrar(app)
+    telegram_cerebro.registrar(app)
+    telegram_vida.registrar(app)
+    telegram_empresa.registrar(app)
+    telegram_equipo.registrar(app)
+    telegram_mediacion.registrar(app)
     telegram_ingles.registrar(app)                 # antes del manejador general de botones
     telegram_portafolio.registrar(app)
     telegram_moodle.registrar(app)

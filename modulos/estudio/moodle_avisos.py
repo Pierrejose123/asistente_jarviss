@@ -8,7 +8,7 @@ import os
 import re
 import time
 from contextlib import closing
-from datetime import datetime
+from datetime import datetime, timedelta
 from html import escape, unescape
 
 import requests
@@ -22,7 +22,7 @@ log = registro("moodle")
 SITIO = (os.getenv("MOODLE_SITIO") or "").strip().rstrip("/")   # ej. https://campus.su-instituto.edu
 PERMITIDAS = {"core_webservice_get_site_info", "message_popup_get_popup_notifications", "core_enrol_get_users_courses",
               "mod_forum_get_forums_by_courses", "mod_forum_get_forum_discussions",
-              "core_calendar_get_calendar_event_by_id", "mod_assign_get_submission_status",
+              "core_calendar_get_calendar_event_by_id", "mod_assign_get_submission_status", "mod_assign_get_assignments",
               "core_course_get_contents"}
 
 ESQUEMA = """
@@ -31,6 +31,19 @@ CREATE TABLE IF NOT EXISTS moodle_vistos (
     id    TEXT NOT NULL,
     visto TEXT DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (tipo, id)
+);
+CREATE TABLE IF NOT EXISTS moodle_entregas (     -- lo último que dijo Moodle de cada deber (para el panel)
+    tarea_id INTEGER PRIMARY KEY,
+    estado   TEXT,                -- submitted | draft | new | ...
+    revisado TEXT
+);
+CREATE TABLE IF NOT EXISTS moodle_revision (     -- una sola fila: cómo salió la última revisión de entregas
+    id       INTEGER PRIMARY KEY CHECK (id = 1),
+    cuando   TEXT,
+    revisados INTEGER,
+    entregados INTEGER,
+    errores  INTEGER,
+    ultimo_error TEXT
 );
 """
 _info = {}
@@ -151,13 +164,51 @@ def avisos_nuevos():
 
 
 # ------------------------------------------------------------------ entregas ---
+DIAS_ATRAS = 45      # también revisa deberes ya vencidos (pudo entregarlos tarde o Jarvis no se enteró)
+
+
+def _mapa_tareas():
+    """{numero de actividad (cmid): numero de tarea (assign id)} de todos sus cursos, en una sola consulta.
+    El calendario de Moodle devuelve en 'instance' el número de la ACTIVIDAD, no el de la tarea."""
+    mapa, ids = {}, set()
+    for c in llamar("mod_assign_get_assignments").get("courses", []):
+        for a in c.get("assignments", []):
+            ids.add(a["id"])
+            if a.get("cmid"):
+                mapa[a["cmid"]] = a["id"]
+    return mapa, ids
+
+
+def _id_tarea(ev, mapa, ids):
+    inst = ev.get("instance")
+    if inst in mapa:
+        return mapa[inst]
+    return inst if inst in ids else None
+
+
+def _guardar_estado(tarea_id, estado):
+    with closing(_con()) as con, con:
+        con.execute("INSERT OR REPLACE INTO moodle_entregas (tarea_id, estado, revisado) VALUES (?, ?, ?)",
+                    (tarea_id, estado, ahora().isoformat(timespec="minutes")))
+
+
+def _guardar_revision(revisados, entregados, errores, ultimo_error):
+    with closing(_con()) as con, con:
+        con.execute("INSERT OR REPLACE INTO moodle_revision (id, cuando, revisados, entregados, errores, ultimo_error) "
+                    "VALUES (1, ?, ?, ?, ?, ?)", (ahora().isoformat(timespec="minutes"), revisados, entregados, errores,
+                                                  (ultimo_error or "")[:200]))
+
+
 def entregas_hechas():
     """Deberes de Moodle pendientes en el asistente que ya figuran ENTREGADOS en Moodle -> se marcan hechos."""
+    desde = (ahora().replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(days=DIAS_ATRAS)).isoformat()
     with closing(moodle._con()) as con:
         filas = con.execute("SELECT * FROM moodle_eventos WHERE tipo = 'deber' AND tarea_id IS NOT NULL "
-                            "AND vence >= ?", ((ahora().replace(hour=0, minute=0)).isoformat(),)).fetchall()
-    hechas = []
+                            "AND vence >= ?", (desde,)).fetchall()
+    hechas, revisadas, mapa, errores, ultimo_error = [], set(), None, 0, ""
     for f in filas:
+        if f["tarea_id"] in revisadas:
+            continue
         t = tareas.obtener(f["tarea_id"])
         if not t or t["estado"] != "pendiente" or visto("entrega", f["uid"]):
             continue
@@ -168,14 +219,27 @@ def entregas_hechas():
             ev = llamar("core_calendar_get_calendar_event_by_id", eventid=int(evento_id)).get("event", {})
             if ev.get("modulename") != "assign":
                 continue
-            estado = llamar("mod_assign_get_submission_status", assignid=ev["instance"])
+            if mapa is None:
+                mapa = _mapa_tareas()
+            assignid = _id_tarea(ev, *mapa)
+            if not assignid:
+                log.info("No encontré en Moodle la tarea de %s (actividad %s)", f["titulo"], ev.get("instance"))
+                errores, ultimo_error = errores + 1, "No encontré la tarea de " + f["titulo"]
+                continue
+            estado = llamar("mod_assign_get_submission_status", assignid=assignid)
         except SinConexion:
             raise
         except Exception as exc:
             log.info("No pude ver la entrega de %s: %s", f["titulo"], exc)
+            errores, ultimo_error = errores + 1, str(exc)
             continue
-        envio = (estado.get("lastattempt") or {}).get("submission") or (estado.get("lastattempt") or {}).get("teamsubmission") or {}
-        if envio.get("status") == "submitted":
+        revisadas.add(f["tarea_id"])
+        intento = estado.get("lastattempt") or {}
+        envios = [intento.get("submission") or {}, intento.get("teamsubmission") or {}]
+        estados = [e.get("status") for e in envios if e.get("status")]
+        entregado = "submitted" in estados
+        _guardar_estado(t["id"], "submitted" if entregado else (estados[0] if estados else "new"))
+        if entregado:
             marcar("entrega", f["uid"])
             tareas.cambiar_estado(t["id"], "hecha")
             try:
@@ -184,6 +248,7 @@ def entregas_hechas():
                 log.info("No se actualizo en Google: %s", exc)
             hechas.append(t)
         time.sleep(0.3)
+    _guardar_revision(len(revisadas), len(hechas), errores, ultimo_error)
     return hechas
 
 

@@ -1,4 +1,5 @@
 """Control del asistente:  python control.py estado | detener | iniciar | reiniciar"""
+import os
 import subprocess
 import sys
 import time
@@ -10,6 +11,22 @@ RAIZ = Path(__file__).resolve().parents[2]
 PYTHONW = RAIZ / ".venv" / "Scripts" / "pythonw.exe"
 SUPERVISOR = RAIZ / "modulos" / "comun" / "supervisor.py"
 MARCAS = ("supervisor.py", "telegram\\bot.py", "telegram/bot.py", "voz\\voz.py", "voz/voz.py")
+# Variables que puede traer quien lance el control (p. ej. Claude Desktop vía el servidor MCP) y que rompen las
+# conexiones del bot: certificados y proxies propios de esa app. El bot debe arrancar como al iniciar Windows.
+QUITAR = {"SSL_CERT_FILE", "SSL_CERT_DIR", "REQUESTS_CA_BUNDLE", "CURL_CA_BUNDLE", "HTTP_PROXY", "HTTPS_PROXY",
+          "ALL_PROXY", "NO_PROXY", "PYTHONHOME", "PYTHONPATH", "PYTHONSTARTUP", "NODE_EXTRA_CA_CERTS", "NODE_OPTIONS"}
+PREFIJOS = ("ELECTRON_", "CLAUDE", "ANTHROPIC", "MCP_")
+
+
+def entorno_limpio(base=None):
+    """Copia del entorno sin lo que dejan otras apps; devuelve (entorno, nombres quitados)."""
+    env, quitadas = {}, []
+    for k, v in (os.environ if base is None else base).items():
+        if k.upper() in QUITAR or k.upper().startswith(PREFIJOS):
+            quitadas.append(k)
+        else:
+            env[k] = v
+    return env, sorted(quitadas)
 
 
 def _cmd(p):
@@ -54,7 +71,15 @@ def iniciar():
     if procesos():
         print("Ya esta encendido.")
         return
-    subprocess.Popen([str(PYTHONW), str(SUPERVISOR)], cwd=str(RAIZ), creationflags=0x08000000)
+    env, quitadas = entorno_limpio()
+    if quitadas:
+        try:
+            (RAIZ / "logs").mkdir(exist_ok=True)
+            with open(RAIZ / "logs" / "control.log", "a", encoding="utf-8") as f:
+                f.write(time.strftime("%Y-%m-%d %H:%M:%S") + " iniciar sin: " + ", ".join(quitadas) + "\n")
+        except Exception:
+            pass
+    subprocess.Popen([str(PYTHONW), str(SUPERVISOR)], cwd=str(RAIZ), creationflags=0x08000000, env=env)
     print("Asistente iniciado en segundo plano (bot y voz).")
     print("En unos segundos le llegara 'Asistente en linea' por Telegram; la voz tarda ~30 s en estar lista.")
 

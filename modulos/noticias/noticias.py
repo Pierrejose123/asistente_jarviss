@@ -320,16 +320,21 @@ def _consulta_google(nombre):
     return '"' + nombre + '"' + ("" if " " in nombre else " acciones")
 
 
-def recoger():
-    """Lee todas las fuentes y guarda las noticias nuevas. Devuelve las nuevas como dicts."""
+RAPIDAS = {"CNBC", "CNBC Economía", "MarketWatch", "BBC Business", "Oil", "Trump (EN)", "Money laws"}
+
+
+def recoger(rapido=False):
+    """Lee todas las fuentes y guarda las noticias nuevas. Devuelve las nuevas como dicts.
+    rapido=True (en vivo, cada 2-5 min): solo medios de mercado que actualizan al minuto + Yahoo por empresa."""
     a = ajustes()
     acciones = mis_acciones()
-    fuentes = [(f["nombre"], f["url"], f.get("tipo", "general"), None) for f in a["fuentes"] if f.get("activa", True)]
+    fuentes = [(f["nombre"], f["url"], f.get("tipo", "general"), None) for f in a["fuentes"] if f.get("activa", True)
+               and (not rapido or f["nombre"] in RAPIDAS or f.get("rapida"))]
     tema_de = {f["nombre"]: f.get("tema") for f in a["fuentes"]}
     for t, nombre in acciones.items():
         if a.get("por_empresa_yahoo") and not t.startswith("^"):
             fuentes.append(("Yahoo Finance", YAHOO.format(t=quote_plus(t)), "empresa", t))
-        if a.get("por_empresa_google") and nombre and nombre != t:
+        if a.get("por_empresa_google") and nombre and nombre != t and not rapido:
             fuentes.append(("Google Noticias", GOOGLE.format(q=quote_plus(_consulta_google(nombre))), "empresa", t))
     limite = datetime.now(timezone.utc) - timedelta(days=3)
     nuevas = []
@@ -371,6 +376,8 @@ def recoger():
                     ((datetime.now(timezone.utc) - timedelta(days=30)).isoformat(timespec="minutes"),))
     if nuevas:
         log.info("%d noticias nuevas de %d fuentes", len(nuevas), len(fuentes))
+    if rapido:
+        return nuevas
     try:                                         # análisis de XTB Latam (cada hora): solo para cruzar, no son noticias
         from modulos.noticias import xtb_latam
         xtb_latam.recoger()
@@ -646,6 +653,11 @@ def resumen_manana(con_lectura=True):
                         [(i, f["clave"], ahora().isoformat(timespec="minutes")) for i, f in enumerate(elegidas, 1)])
 
     primero = ["📰 <b>Noticias de la mañana</b>"]
+    try:                                          # tablero del mercado, distancia al máximo y lo que trae el día
+        from modulos.noticias import mercado
+        primero += ["", mercado.bloque_boletin()]
+    except Exception as exc:
+        log.info("Sin bloque de mercado: %s", exc)
     if ia.get("general"):
         primero += ["", "🗞 <b>Resumen del día</b>", escape(ia["general"])]
     if macro:
@@ -1245,6 +1257,8 @@ def _para_voz(respuesta, pregunta):
 
 
 def procesar(texto, canal="telegram"):
+    if canal == "claude":                      # Claude por MCP: solo lo exacto (sin investigar con la IA local)
+        return _procesar_codigo(texto)
     respuesta = _procesar(texto)
     if respuesta and canal == "voz" and len(respuesta) > 450:
         return _para_voz(respuesta, texto)
@@ -1268,7 +1282,26 @@ def _con_digitos(texto):
     return re.sub(r"(?i)\b(\d{1,2})\s*(?:ra|era|ro|da|do|ta|to|va|vo|na|no|ma|mo|°|º|ª)\b", r"\1", t)
 
 
+def _procesar_codigo(texto):
+    try:
+        from modulos.noticias import mercado
+        r = mercado.procesar(texto)
+        if r:
+            return r
+    except Exception as exc:
+        log.info("Mercado no respondió: %s", exc)
+    m = PIDE_NOTICIAS.match(texto or "")
+    return texto_consulta(m.group(1) or "") if m else None
+
+
 def _procesar(texto):
+    try:                                       # «más noticias», «silencio hasta mañana», «¿cómo está el mercado?»
+        from modulos.noticias import mercado
+        r = mercado.procesar(texto)
+        if r:
+            return r
+    except Exception as exc:
+        log.info("Mercado no respondió: %s", exc)
     try:                                       # «¿qué dice XTB de Meta?», «lo último de XTB»
         from modulos.noticias import xtb_latam
         if xtb_latam.es_pregunta(texto):
@@ -1355,7 +1388,15 @@ def contexto_ia(texto, maximo=1800):
             ". Si te pregunta por noticias o el mercado, úsalos, cita la fuente y distingue hechos de tu opinión. "
             "Si pregunta algo de una noticia o de actualidad, USA la herramienta leer_noticia directamente (nunca "
             "le ofrezcas usarla ni digas 'no tengo registrado'). "
-            "No recomiendes comprar ni vender.\n" + "\n".join(lineas) + activa)
+            "No recomiendes comprar ni vender.\n" + "\n".join(lineas) + activa + _contexto_mercado())
+
+
+def _contexto_mercado():
+    try:
+        from modulos.noticias import mercado
+        return mercado.contexto_ia()
+    except Exception:
+        return ""
 
 
 # ------------------------------------------------------------------ desde la PC ---

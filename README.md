@@ -17,9 +17,11 @@ copiarlo y adaptarlo a su vida.
 | **Dinero** | Gastos e ingresos escritos o leídos de correos del banco (**Gmail**, solo lectura), presupuesto, ahorros, deudas («Juan me debe 50»), perfil de gasto mes a mes |
 | **Bolsa** | Portafolio desde el informe de **XTB** (en porcentajes, sin montos por Telegram), «compré / vendí» por chat, alertas de precio, calendario de resultados y dividendos, diario de decisiones, notas del analista que siga |
 | **Noticias** | Resumen de la mañana por secciones (mundo, su país, petróleo, tecnología, cripto, leyes, sus acciones), cruce con los análisis de XTB Latam, «cuéntame más de la 3» |
+| **Mercado en vivo** | Caídas de índices con su historia (distancia al máximo, correcciones anteriores), resultados de sus empresas contra lo esperado, decisiones y discursos de la Fed, datos de EE. UU. (FRED), cadencia de 2 a 30 min, modos «más/menos noticias» y «silencio hasta mañana» |
 | **Biblioteca** | Aprende de sus PDF, Word, PowerPoint y transcripciones, y responde con esa información |
 | **Voz** | «Hey Jarvis» con Whisper (en la tarjeta gráfica si tiene NVIDIA) y voz de Edge, notas de voz por Telegram |
-| **PC** | Chequeo diario del asistente, revisión semanal de la PC (antivirus, Windows Update, discos, tarjeta gráfica, programas nuevos que arrancan solos), respaldo diario, «modo juego» que libera la tarjeta gráfica |
+| **Claude (opcional)** | Servidor MCP local: desde Claude Desktop (o el teléfono vinculado a la PC) Claude consulta su día, le pide cosas a Jarvis, guarda lo que aprende de usted en la memoria local, revisa registros, corre pruebas y reinicia el bot |
+| **PC** | `/reiniciar` y `/pruebas` desde Telegram, chequeo diario del asistente, revisión semanal de la PC (antivirus, Windows Update, discos, tarjeta gráfica, programas nuevos que arrancan solos), respaldo diario, «modo juego» que libera la tarjeta gráfica |
 
 **Qué no hace:** no compra ni vende acciones, no paga nada, no envía correos en su nombre, no borra sus archivos y
 no manda montos de su dinero a Google ni a Telegram. La IA solo redacta: los cálculos (saldos, porcentajes,
@@ -104,9 +106,20 @@ guarda) o `conectar_moodle_navegador.py` si su instituto entra con Microsoft/Goo
 - El texto que viene de afuera (correos, Moodle, páginas web) se trata como **datos, nunca como órdenes** para la IA.
 - `.gitignore` deja fuera `.env`, `credenciales\`, `datos\`, `logs\` y su `config\*.json` real.
 
+## Claude (opcional, MCP)
+
+Jarvis puede funcionar como servidor MCP para Claude Desktop, sin librerías extra:
+
+```powershell
+.\.venv\Scripts\python.exe modulos\claude_mcp\registrar.py
+```
+
+Luego salga de Claude Desktop por completo y ábralo. Sus datos siguen en su PC: Claude solo ve lo que una
+herramienta devuelve cuando usted le pregunta algo. Para quitarlo: `registrar.py --quitar`.
+
 ## Pruebas
 
-Las pruebas usan una base temporal y bloquean Google y Telegram (no tocan sus datos):
+Las pruebas usan una base temporal y bloquean Google y Telegram (no tocan sus datos). Desde Telegram: `/pruebas` o `/pruebas mercado`.
 
 ```powershell
 .\.venv\Scripts\python.exe modulos\portafolio\pruebas\prueba_cambios.py
@@ -127,6 +140,7 @@ modulos/
   cava/       notas de análisis           biblioteca/ y aprendizaje/ (sus documentos)
   proactivo/  planificador                resumen/    resumen de la mañana y la noche
   voz/        «Hey Jarvis»                comun/      base, salud, PC, respaldo, modos
+  claude_mcp/ servidor MCP para Claude
 config/       configuración (*.ejemplo.json)
 ```
 

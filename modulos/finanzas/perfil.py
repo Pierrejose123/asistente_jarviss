@@ -172,12 +172,31 @@ def contexto_ia():
     yo = sum(deudas.saldo(d["id"]) for d in deudas.abiertas(sentido="le_debo"))
     if me or yo:
         partes.append("Deudas: le deben " + fmt(me) + ", él debe " + fmt(yo))
+    try:                                                   # saldos de sus cuentas (estimados con los correos del banco)
+        from modulos.finanzas import cuentas
+        saldos = [(c, cuentas.saldo(c)[0]) for c in cuentas.nombres_cuentas()]
+        saldos = [c + " " + fmt(v) for c, v in saldos if v is not None]
+        if saldos:
+            partes.append("Saldo estimado en sus cuentas: " + ", ".join(saldos))
+        pend = cuentas.pendientes()
+        if pend:
+            partes.append(str(len(pend)) + " movimientos del banco esperan que diga qué fueron")
+    except Exception:
+        pass
+    try:                                                   # tarjetas: lo que debe pagar, lo pagado, diferidos y cuotas
+        from modulos.finanzas import tarjetas
+        t = tarjetas.contexto_ia(hoy)
+        if t:
+            partes.append(t)
+    except Exception:
+        pass
     return ". ".join(partes) + "."
 
 
 GUIA_DINERO = ("GUIA DE DINERO (para aconsejar al usuario con sus numeros reales de arriba): usa la regla 50/30/20 como "
                "referencia (necesidades/gustos/ahorro); recomienda un fondo de emergencia de 3 a 6 meses de gastos; pagar "
-               "SIEMPRE el total de las tarjetas para no pagar intereses; antes de una compra grande, comparar con lo que le "
+               "SIEMPRE el total de las tarjetas para no pagar intereses; si pregunta si puede diferir una compra, la cuenta exacta la "
+               "hace el codigo (pidele que escriba: «¿me alcanza … de 900 a 6 meses?»); antes de una compra grande, comparar con lo que le "
                "queda del mes y sus presupuestos; avisarle con tacto si va gastando mas rapido de lo que avanza el mes. "
                "Si algo no cuadra con sus habitos, preguntale. No recomiendes acciones ni inversiones concretas, ni "
                "productos financieros; no inventes cifras: si un dato no esta, dilo.")

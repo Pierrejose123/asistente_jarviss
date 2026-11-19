@@ -3,10 +3,14 @@
 - Foto con texto ("Juan me pago 100"): se guarda y se adjunta a ese pago.
 - Foto sin texto: se guarda y se adjunta a lo proximo que anote en los siguientes 15 minutos.
 - Avisos a las 09:00: cuotas del dia, atrasos (3 dias) y fechas limite. Sin repetir.
+- Cuentas del banco (paso 7, 13-11): transferencias, pagos de tarjeta y de servicios por correo, botones «¿Qué fue?»
+  (cta:…), /saldo, «saldo pichincha 405» y la revisión del saldo el día 1 a las 09:10.
+- Tarjetas (paso 8, 13-11): estados de cuenta en PDF (cada 6 h), diferidos y cuotas (/diferidos), fechas máximas de pago
+  (/credito — /tarjetas es de la biblioteca —, aviso 3 días antes y el día, 09:00) y «¿me alcanza comprar X de 900 a 6 meses?».
 """
 import asyncio
 import tempfile
-from datetime import time as hora
+from datetime import date, time as hora
 from pathlib import Path
 
 from telegram import InlineKeyboardButton as Boton, InlineKeyboardMarkup as Teclado, Update
@@ -14,7 +18,7 @@ from telegram.ext import ApplicationHandlerStop, CallbackQueryHandler, CommandHa
 
 from modulos.comun import db
 from modulos.comun.base import USER_ID, ZONA, ahora, registro
-from modulos.finanzas import ahorros, deudas, gastos, perfil, presupuesto
+from modulos.finanzas import ahorros, cuentas, deudas, gastos, perfil, presupuesto, tarjetas
 
 log = registro("finanzas")
 
@@ -23,7 +27,8 @@ COMANDOS = [("gastos", "Mis gastos de este mes"), ("mes", "Resumen completo del 
             ("correos", "Revisar ya los correos de consumo del banco"),
             ("presupuesto", "Sueldo, cuánto me queda y presupuestos"),
             ("historial", "Mi dinero mes a mes"), ("ahorros", "Mis ahorros programados"),
-            ("deudas", "Quién me debe y a quién le debo")]
+            ("deudas", "Quién me debe y a quién le debo"), ("saldo", "Saldo de mis cuentas del banco"),
+            ("diferidos", "Mis diferidos y cuotas por mes"), ("credito", "Tarjetas de crédito: fechas de pago y lo pagado")]
 
 
 def _teclado_crudo(filas):
@@ -86,6 +91,7 @@ async def revisar_correos(context: ContextTypes.DEFAULT_TYPE):
         arreglo = correos.texto_reparacion(await asyncio.to_thread(correos.corregir_reversos_pasados))   # una sola vez
         if arreglo:
             await context.bot.send_message(USER_ID, arreglo)
+        await revisar_cuentas(context)
     except correos.SinPermiso:
         clave = ahora().date().isoformat() + "|gmail_permiso"
         if not db.aviso_enviado(clave):
@@ -99,6 +105,121 @@ async def revisar_correos(context: ContextTypes.DEFAULT_TYPE):
         if not db.aviso_enviado(clave):                     # una vez al dia por tipo de error
             db.marcar_aviso(clave)
             await context.bot.send_message(USER_ID, "⚠️ No pude revisar sus correos del banco.\n\n" + motivo)
+
+
+async def revisar_cuentas(context, dias=3):
+    """Correos de transferencias, pagos de tarjeta y servicios. La primera vez importa 30 días solo para el saldo."""
+    if not db.aviso_enviado("cuentas|importacion"):
+        await asyncio.to_thread(cuentas.revisar, None, 30, False)
+        db.marcar_aviso("cuentas|importacion")
+        await context.bot.send_message(USER_ID, "🏦 Ahora también leo sus transferencias, pagos de tarjeta y pagos de servicios "
+                                       "de Pichincha y Produbanco (solo lectura).\n\n" + cuentas.pregunta_saldo())
+        return 0
+    eventos = await asyncio.to_thread(cuentas.revisar, None, dias, True)
+    for cid, ev in eventos:
+        texto, filas = cuentas.texto_evento(ev)
+        await context.bot.send_message(USER_ID, texto, reply_markup=_teclado_crudo(filas) if filas else None)
+    for texto in await asyncio.to_thread(cuentas.revisar_negativos):       # saldo negativo = entró dinero sin aviso
+        await context.bot.send_message(USER_ID, texto)
+    return len(eventos)
+
+
+async def boton_cuenta(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    q = update.callback_query
+    if not q.from_user or q.from_user.id != USER_ID:
+        return
+    await q.answer()
+    partes = q.data.split(":")
+    accion, cid = partes[1], int(partes[2])
+    if accion == "gasto":
+        await q.edit_message_reply_markup(_teclado_crudo(cuentas.botones_categoria(cid)))
+        return
+    if accion == "noreemb":
+        r = await asyncio.to_thread(cuentas.no_era_reembolso, cid)
+        if not r:
+            await q.edit_message_reply_markup(None)
+            return
+        await q.edit_message_text(r[0], reply_markup=_teclado_crudo(r[1]) if r[1] else None)
+        return
+    if accion == "cat":
+        texto = await asyncio.to_thread(cuentas.aplicar, cid, "gasto", gastos.categorias()[int(partes[3])])
+    elif accion in ("deuda", "reembolso"):
+        texto = await asyncio.to_thread(cuentas.aplicar, cid, accion, partes[3])
+    else:
+        texto = await asyncio.to_thread(cuentas.aplicar, cid, accion)
+    await q.edit_message_text(q.message.text.split("\n🏦")[0] + "\n\n" + texto)
+
+
+async def revisar_tarjetas(context: ContextTypes.DEFAULT_TYPE):
+    from modulos.finanzas import correos
+    if not correos.TOKEN.exists():
+        return
+    try:
+        import time
+        tarjetas.ULTIMA_REVISION["t"] = time.time()
+        eventos = await asyncio.to_thread(tarjetas.revisar)
+    except Exception as exc:
+        log.info("Tarjetas: %s", exc)
+        return
+    for ev in eventos:
+        if ev[0] == "estado":
+            await context.bot.send_message(USER_ID, tarjetas.texto_estado(ev[1]))
+        elif ev[0] == "diferido":
+            await context.bot.send_message(USER_ID, tarjetas.texto_diferido_nuevo(ev[1], ev[2]))
+
+
+async def avisos_tarjetas(context: ContextTypes.DEFAULT_TYPE):
+    """Un aviso entre 3 y 1 días antes de la fecha máxima de pago (el primero que encuentre) y otro el mismo día."""
+    hoy = ahora().date()
+    for e, pagado in await asyncio.to_thread(tarjetas.pagos_por_vencer, hoy):
+        dias = (date.fromisoformat(e["fecha_max"]) - hoy).days
+        clave = "tarjeta_pago|" + e["ref"] + ("|dia" if dias == 0 else "|antes")
+        if db.aviso_enviado(clave):
+            continue
+        db.marcar_aviso(clave)
+        await context.bot.send_message(USER_ID, tarjetas.texto_por_vencer(e, pagado, hoy))
+
+
+async def _refrescar_tarjetas(update, context):
+    """Antes de responder /credito o /diferidos, lee Gmail si hace rato que no (así no hay que esperar 6 horas)."""
+    try:
+        eventos = await asyncio.to_thread(tarjetas.revisar_si_hace_falta)
+    except Exception as exc:
+        log.info("Tarjetas (al pedir): %s", exc)
+        return
+    for ev in eventos:
+        if ev[0] == "estado":
+            await update.message.reply_text(tarjetas.texto_estado(ev[1]))
+        elif ev[0] == "diferido":
+            await update.message.reply_text(tarjetas.texto_diferido_nuevo(ev[1], ev[2]))
+
+
+async def cmd_diferidos(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await context.bot.send_chat_action(update.effective_chat.id, "typing")
+    await _refrescar_tarjetas(update, context)
+    await update.message.reply_text(await asyncio.to_thread(tarjetas.texto_diferidos))
+
+
+async def cmd_tarjetas(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await context.bot.send_chat_action(update.effective_chat.id, "typing")
+    await _refrescar_tarjetas(update, context)
+    await update.message.reply_text(await asyncio.to_thread(tarjetas.texto_tarjetas))
+
+
+async def cmd_saldo(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(await asyncio.to_thread(cuentas.estado))
+
+
+async def saldo_mensual(context: ContextTypes.DEFAULT_TYPE):
+    """Día 1 (o los 3 primeros días si la PC estuvo apagada): pregunta el saldo real de cada cuenta."""
+    hoy = ahora().date()
+    clave = hoy.isoformat()[:7] + "|saldo_mensual"
+    if hoy.day > 3 or db.aviso_enviado(clave) or not db.aviso_enviado("cuentas|importacion"):
+        return
+    if not any(cuentas.base(c) for c in cuentas.nombres_cuentas()):
+        return
+    db.marcar_aviso(clave)
+    await context.bot.send_message(USER_ID, cuentas.pregunta_saldo())
 
 
 def explicar_error(exc):
@@ -128,6 +249,8 @@ async def cmd_correos(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_chat_action(update.effective_chat.id, "typing")
     try:
         n = await _procesar_correos(context, 7)
+        if db.aviso_enviado("cuentas|importacion"):
+            n += await revisar_cuentas(context, 7)
     except correos.SinPermiso:
         await update.message.reply_text("Gmail pide volver a autorizar: ejecute conectar_gmail.py en la PC.")
         return
@@ -183,6 +306,14 @@ async def texto_gasto(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception:
         pass
     texto = update.message.text or ""
+    c = cuentas.interpretar(texto)                         # «saldo pichincha 405», «mi saldo», «ok» tras la pregunta del día 1
+    if c:
+        await update.message.reply_text(await asyncio.to_thread(cuentas.ejecutar, c))
+        raise ApplicationHandlerStop
+    t = tarjetas.interpretar(texto)                        # «mis diferidos», «¿me alcanza … a 6 meses?», «diferí … a 6 meses»
+    if t:
+        await update.message.reply_text(await asyncio.to_thread(tarjetas.ejecutar, t))
+        raise ApplicationHandlerStop
     if deudas.interpretar(texto) or deudas.parece_deuda(texto):
         return                                             # las deudas las resuelve el cerebro (código o IA)
     a = ahorros.interpretar(texto)
@@ -321,6 +452,8 @@ async def preguntar_sueldo(context: ContextTypes.DEFAULT_TYPE):
     hoy = ahora().date()
     clave = hoy.isoformat() + "|pregunta_sueldo"
     if not presupuesto.toca_preguntar_sueldo(hoy) or db.aviso_enviado(clave):
+        return
+    if cuentas.sueldo_llego(hoy):                           # ya llegó por transferencia (o lo anotó): no preguntar
         return
     db.marcar_aviso(clave)
     await context.bot.send_message(USER_ID, "💼 Hoy es su día de pago: ¿le llegó el sueldo de " + deudas.fmt(presupuesto.sueldo())
@@ -471,6 +604,10 @@ def registrar(app):
     app.add_handler(CommandHandler("presupuesto", cmd_presupuesto, filters=solo))
     app.add_handler(CommandHandler("historial", cmd_historial, filters=solo))
     app.add_handler(CommandHandler("ahorros", cmd_ahorros, filters=solo))
+    app.add_handler(CommandHandler("saldo", cmd_saldo, filters=solo))
+    app.add_handler(CommandHandler("diferidos", cmd_diferidos, filters=solo))
+    app.add_handler(CommandHandler("credito", cmd_tarjetas, filters=solo))
+    app.add_handler(CallbackQueryHandler(boton_cuenta, pattern=r"^cta:"))
     app.add_handler(CallbackQueryHandler(boton_revision, pattern=r"^rev:"))
     app.add_handler(CallbackQueryHandler(boton_presupuesto, pattern=r"^pre:"))
     app.add_handler(CommandHandler("movimientos", cmd_movimientos, filters=solo))
@@ -492,6 +629,13 @@ def programar(job_queue):
     if 10 <= ahora().hour < 22:
         job_queue.run_once(preguntar_sueldo, when=75, name="pregunta_sueldo_tarde")
     job_queue.run_once(resumen_mensual, when=60, name="resumen_gastos_tarde")
+    job_queue.run_daily(saldo_mensual, time=hora(9, 10, tzinfo=ZONA), name="saldo_mensual")
+    job_queue.run_repeating(revisar_tarjetas, interval=6 * 3600, first=240, name="tarjetas_estados")
+    job_queue.run_daily(avisos_tarjetas, time=hora(9, 0, 30, tzinfo=ZONA), name="tarjetas_pago")
+    if 9 <= ahora().hour < 22:
+        job_queue.run_once(avisos_tarjetas, when=300, name="tarjetas_pago_tarde")
+    if 9 <= ahora().hour < 22:
+        job_queue.run_once(saldo_mensual, when=150, name="saldo_mensual_tarde")
     f = ahora()
     if 9 <= f.hour < 22:                          # si la PC se encendio despues de las 9
         job_queue.run_once(avisos, when=45, name="deudas_avisos_tarde")

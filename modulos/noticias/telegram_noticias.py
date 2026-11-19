@@ -11,11 +11,15 @@ from telegram.ext import CommandHandler, ContextTypes, filters  # noqa: E402
 
 from modulos.comun import db  # noqa: E402
 from modulos.comun.base import USER_ID, ZONA, ahora, registro  # noqa: E402
-from modulos.noticias import noticias  # noqa: E402
+from modulos.noticias import mercado, noticias  # noqa: E402
 
 log = registro("noticias")
 COMANDOS = [("noticias", "Noticias del mundo y de sus acciones: /noticias NVDA"),
-            ("noticia", "Explicar a fondo una noticia del resumen: /noticia 3")]
+            ("noticia", "Explicar a fondo una noticia del resumen: /noticia 3"),
+            ("mercado", "Índices, distancia al máximo, bono, dólar y próxima Fed"),
+            ("macro", "Últimos datos de EE. UU.: inflación, empleo, confianza…"),
+            ("resultados", "Fechas y sorpresas de resultados de sus empresas: /resultados META"),
+            ("agenda_mercado", "Agenda de la semana: Fed y resultados")]
 
 
 async def _enviar(context, texto):
@@ -23,13 +27,66 @@ async def _enviar(context, texto):
 
 
 async def recoger_y_alertar(context: ContextTypes.DEFAULT_TYPE):
-    """Cada 30 min: trae noticias nuevas y avisa de las fuertes sobre sus empresas."""
+    """Cada 30 min: lee TODAS las fuentes (las alertas las manda «en vivo»)."""
     try:
         await asyncio.to_thread(noticias.recoger)
-        for m in await asyncio.to_thread(noticias.alertas_eventos):
-            await _enviar(context, m)
+        if not mercado.ajustes().get("en_vivo", True):
+            for m in await asyncio.to_thread(noticias.alertas_eventos):
+                await _enviar(context, m)
     except Exception as exc:
         log.info("No pude recoger noticias: %s", exc)
+
+
+_corriendo = []
+
+
+async def en_vivo(context: ContextTypes.DEFAULT_TYPE):
+    """Cada 2 min: mercado.ciclo decide si toca revisar (5 min con bolsa abierta, 2 en momentos clave, 30 de noche)."""
+    if _corriendo:                       # la vuelta anterior sigue (internet lento): no se encimen
+        return
+    _corriendo.append(1)
+    try:
+        for m in await asyncio.to_thread(mercado.ciclo):
+            await _enviar(context, m)
+    except Exception as exc:
+        log.info("En vivo falló: %s", exc)
+    finally:
+        _corriendo.clear()
+
+
+async def _responder_largo(update, funcion, *args):
+    await update.message.chat.send_action("typing")
+    try:
+        texto = await asyncio.to_thread(funcion, *args)
+    except Exception as exc:
+        log.warning("Error en %s: %s", funcion.__name__, exc)
+        await update.message.reply_text("No pude traer eso ahora: " + str(exc)[:120])
+        return
+    for m in mercado.agrupar([texto]):
+        await update.message.reply_html(m, disable_web_page_preview=True)
+
+
+async def cmd_mercado(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if context.args:                     # /mercado nasdaq -> con historia completa
+        q = " ".join(context.args).lower()
+        for sim, nombre in mercado.ajustes()["indices"].items():
+            if q.replace("&", "") in (nombre.lower().replace("&", ""), sim.lower(), sim.lower().strip("^")):
+                await _responder_largo(update, lambda s=sim, n=nombre: mercado.texto_indice(n, mercado.analizar(
+                    mercado.serie_viva(s))))
+                return
+    await _responder_largo(update, mercado.texto_mercado)
+
+
+async def cmd_macro(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await _responder_largo(update, mercado.texto_macro)
+
+
+async def cmd_resultados(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await _responder_largo(update, mercado.texto_resultados, " ".join(context.args or []))
+
+
+async def cmd_agenda_mercado(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await _responder_largo(update, lambda: mercado.agenda_semana() + "\n\n" + (mercado.proximo_fed() or ""))
 
 
 async def vigilar_movimientos(context: ContextTypes.DEFAULT_TYPE):
@@ -101,6 +158,10 @@ def registrar(app):
     solo = filters.User(user_id=USER_ID)
     app.add_handler(CommandHandler("noticias", cmd_noticias, filters=solo))
     app.add_handler(CommandHandler("noticia", cmd_noticia, filters=solo))
+    app.add_handler(CommandHandler("mercado", cmd_mercado, filters=solo))
+    app.add_handler(CommandHandler("macro", cmd_macro, filters=solo))
+    app.add_handler(CommandHandler("resultados", cmd_resultados, filters=solo))
+    app.add_handler(CommandHandler("agenda_mercado", cmd_agenda_mercado, filters=solo))
 
 
 def programar(job_queue):
@@ -110,4 +171,7 @@ def programar(job_queue):
         job_queue.run_daily(resumen_manana, time=hora(t.hour, t.minute, tzinfo=ZONA), name="noticias_" + h)
     job_queue.run_once(resumen_manana, when=150, name="noticias_tarde")       # si la PC se encendió tarde
     job_queue.run_repeating(recoger_y_alertar, interval=1800, first=60, name="noticias_recoger")
-    job_queue.run_repeating(vigilar_movimientos, interval=1800, first=300, name="noticias_movimientos")
+    if mercado.ajustes().get("en_vivo", True):          # movimientos, índices, Fed, datos y resultados: en vivo
+        job_queue.run_repeating(en_vivo, interval=120, first=90, name="noticias_en_vivo")
+    else:
+        job_queue.run_repeating(vigilar_movimientos, interval=1800, first=300, name="noticias_movimientos")

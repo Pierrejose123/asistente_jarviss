@@ -69,6 +69,13 @@ def matutino(f):
         lineas += ["", "\U0001F51C <b>Próximos 3 días</b>"] + ["• " + tareas.linea(t) for t in proximas]
     if not (de_hoy or vencidas or proximas) and not [c for c in clases_efectivas(f) if c["nota"] != "cancelada"]:
         lineas += ["", "Un día tranquilo. Que lo disfrute."]
+    try:                                      # sueño de anoche (datos de la banda o «me voy a dormir») + un consejo
+        from modulos.vida import sueno
+        linea_sueno = sueno.linea_manana(f)
+        if linea_sueno:
+            lineas += ["", escape(linea_sueno)]
+    except Exception:
+        pass
     v = versiculo.bloque("Para empezar el día")
     if v:
         lineas += ["", v]
@@ -88,6 +95,15 @@ def nocturno(f):
     if habitos.toca_hoy(f):
         r = habitos.registro_de(f)
         lineas.append("\U0001F9B5 " + habitos.nombre() + ": " + {"si": "hechos \U0001F4AA", "no": "hoy no"}.get(r, "sin registrar"))
+    try:                                      # hábitos del día (lectura, agua, inglés, fisio…)
+        from modulos.vida import habitos_vida
+        hechos = [h for h in habitos_vida.del_dia(f) if (h["valor"] or 0) > 0]
+        if hechos:
+            lineas.append("📊 Hábitos: " + ", ".join(h["emoji"] + " " + escape(h["nombre"].lower())
+                                                    + (" " + ("%g" % h["valor"]) if h["tipo"] == "contador" else "")
+                                                    for h in hechos))
+    except Exception:
+        pass
     lineas += ["", "<b>Mañana, " + _fecha_larga(manana) + "</b>"]
     lineas += _clases(manana)
     lineas += _actividades(manana)

@@ -6,6 +6,12 @@ from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
+try:                       # usar los certificados de Windows: funciona aunque un antivirus (Avast) revise el HTTPS
+    import truststore
+    truststore.inject_into_ssl()
+except Exception:          # sin truststore se usa la lista propia de Python (certifi), como antes
+    pass
+
 import requests
 from dotenv import load_dotenv
 
