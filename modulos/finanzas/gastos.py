@@ -225,6 +225,9 @@ P_CONSULTA = re.compile(r"cu[aá]nto (?:he )?gast[eé]|mis gastos|gastos (?:de|d
                         r"resumen mensual|c[oó]mo voy (?:este mes|con (?:los |mis )?gastos)", re.I)
 P_BORRAR_DESC = re.compile(r"^\W*(?:borra|elimina|quita|anula)(?:r)?\s+(?:el |mi |ese |este )?(gasto|ingreso)\s+(?:de |del |en |por )?"
                            r"(?:el |la |los |las )?(.+?)\W*$", re.I)
+P_RECUPERAR = re.compile(r"^\W*(?:recupera|restaura|reactiva|desborra|devu[eé]lve(?:me)?|vuelve a (?:poner|anotar|contar|sumar)|"
+                         r"deshaz (?:el )?borrado(?: de)?|no lo borres)(?:r)?\b\s*(.*?)\W*$", re.I)
+P_BORRADOS = re.compile(r"(?:gastos|movimientos|consumos|ingresos) (?:que )?borr(?:ados|[eé])|qu[eé] (?:he )?borr[eé]|papelera|/borrados", re.I)
 P_BORRAR = re.compile(r"^\W*(?:borra|elimina|quita|deshaz|anula)(?:r)?\s+(?:el |mi )?[uú]ltimo (?:gasto|movimiento|ingreso)\W*$", re.I)
 NO_DESCRIPCION = re.compile(r"^(?:tengo|tienes|tiene|hay|son|es|era|fue|faltan|falta|quedan|queda|clase|clases|tarea|tareas|"
                             r"semana|semanas|mes|meses|a[nñ]o|a[nñ]os|dia|d[ií]as?|hora|horas|minutos?|segundos?|las|los|nivel|"
@@ -246,6 +249,11 @@ def _fecha_de(texto):
 
 def interpretar(texto):
     t = " ".join(texto.strip().split())
+    m = P_RECUPERAR.match(t)
+    if m:
+        return {"accion": "recuperar", "texto": m.group(1) or ""}
+    if P_BORRADOS.search(t):
+        return {"accion": "borrados"}
     if P_BORRAR.match(t):
         return {"accion": "borrar"}
     m = P_BORRAR_DESC.match(t)
@@ -497,6 +505,60 @@ def pregunta_pendiente(pid):
     return texto, filas
 
 
+def borrados(texto="", dias=45, n=10):
+    """Movimientos borrados (por error o a propósito) de los últimos días, el más nuevo primero.
+    Si 'texto' trae palabras (p. ej. «atimasa»), solo los que coinciden."""
+    desde = (ahora().date() - timedelta(days=dias)).isoformat()
+    palabras = [w for w in re.findall(r"[a-z0-9]+", _norm(texto)) if len(w) >= 3 and w not in RELLENO_RECUPERAR]
+    with closing(_con()) as con:
+        filas = [dict(f) for f in con.execute("SELECT * FROM movimientos WHERE estado = 'borrado' AND (fecha >= ? OR creado >= ?) "
+                                              "ORDER BY id DESC", (desde, desde))]
+    if palabras:
+        filas = [f for f in filas if all(w in _norm(f["descripcion"] + " " + f["categoria"] + " " + f["medio"]) for w in palabras)]
+    return filas[:n]
+
+
+RELLENO_RECUPERAR = {"gasto", "gastos", "consumo", "consumos", "movimiento", "ingreso", "que", "borre", "borrado", "borrada",
+                     "ultimo", "ultima", "por", "error", "sin", "querer", "del", "las", "los", "ese", "este", "mio", "eso"}
+
+
+def recuperar(mid):
+    """Vuelve a contar un movimiento borrado. Devuelve el movimiento o None si no estaba borrado."""
+    g = obtener(mid)
+    if not g or g["estado"] != "borrado":
+        return None
+    cambiar(mid, estado="activo")
+    log.info("Gasto recuperado: #%s %s %s", mid, g["descripcion"], g["monto"])
+    return obtener(mid)
+
+
+def recuperar_texto(texto):
+    """«recupera el gasto 76», «recupera el de atimasa», «recupera el último borrado»."""
+    num = re.search(r"#?\b(\d+)\b", texto or "")
+    if num and not re.search(r"[.,]\d", texto):
+        g = recuperar(int(num.group(1)))
+        if g:
+            return "↩️ Recuperado y contado otra vez: " + linea(g) + " (" + g["categoria"] + ")."
+        return "El movimiento #" + num.group(1) + " no está borrado (o no existe). Vea los borrados con «gastos borrados»."
+    lista = borrados(texto)
+    if not lista:
+        return ("No encontré un movimiento borrado" + (" de «" + texto.strip() + "»" if texto.strip() else "")
+                + " en los últimos 45 días.")
+    g = recuperar(lista[0]["id"])
+    r = "↩️ Recuperado y contado otra vez: " + linea(g) + " (" + g["categoria"] + ")."
+    if len(lista) > 1:
+        r += "\nOtros borrados parecidos: " + "; ".join(linea(x) for x in lista[1:4])
+    return r
+
+
+def lista_borrados():
+    lista = borrados()
+    if not lista:
+        return "No hay movimientos borrados en los últimos 45 días."
+    return ("Borrados recientes (diga «recupera el gasto N» para volver a contarlo):\n"
+            + "\n".join(linea(x) for x in lista))
+
+
 ULTIMO_ANOTADO = []          # el bot lo usa para poner los botones "Cambiar categoria / Deshacer"
 
 
@@ -504,6 +566,10 @@ def ejecutar(d, origen="telegram"):
     a = d["accion"]
     if a == "consulta":
         return consulta(d["texto"])
+    if a == "recuperar":
+        return recuperar_texto(d["texto"])
+    if a == "borrados":
+        return lista_borrados()
     if a == "borrar_desc":
         lista = buscar(d["texto"], "ingreso" if d.get("tipo") == "ingreso" else "gasto")
         if not lista:

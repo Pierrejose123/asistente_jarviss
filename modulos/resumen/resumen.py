@@ -1,4 +1,6 @@
-"""Fase 1, paso 6: resumen matutino y nocturno (sin IA, solo datos reales)."""
+"""Fase 1, paso 6: resumen matutino y nocturno (sin IA, solo datos reales).
+19-11: el matutino trae también «Dinero» (tarjetas por vencer en 5 días y gasto del mes). Se apaga con
+"dinero": false dentro de "matutino" en config/resumenes.json. El mercado ya va en las noticias de la mañana."""
 from datetime import date, timedelta
 from html import escape
 
@@ -44,6 +46,56 @@ def _extras(f):
     return lineas
 
 
+def _plata(x):
+    return "$" + ("{:,.2f}".format(x)).replace(",", "X").replace(".", ",").replace("X", ".")
+
+
+def lineas_dinero(hoy, tarjetas_lista, gastado, disponible, dias=5):
+    """Pagos de tarjeta que vencen pronto (sin pagar) y cómo va el gasto del mes. Sin datos: []."""
+    lineas = []
+    for t in tarjetas_lista or []:
+        if not t.get("fecha_max") or t.get("pagada") or not (t.get("falta") or 0) > 0:
+            continue
+        d = date.fromisoformat(t["fecha_max"][:10])
+        faltan = (d - hoy).days
+        if faltan > dias:
+            continue
+        if faltan < 0:                        # ya venció: solo importa si no cubrió el mínimo (lo demás pasa a crédito)
+            falta_min = round((t.get("minimo") or 0) - (t.get("pagado") or 0), 2)
+            if falta_min > 0 and faltan >= -15:
+                lineas.append("• 💳 " + escape(t["tarjeta"]) + ": venció el " + d.strftime("%d/%m") + " y no cubrió el "
+                              "mínimo: faltan " + _plata(falta_min) + " ⚠️")
+            continue
+        cuando = "hoy" if faltan == 0 else "mañana" if faltan == 1 else "en " + str(faltan) + " días"
+        lineas.append("• 💳 " + escape(t["tarjeta"]) + ": pagar " + _plata(t["falta"]) + " hasta el "
+                      + d.strftime("%d/%m") + " (" + cuando + ")"
+                      + (", mínimo " + _plata(t["minimo"]) if t.get("minimo") else ""))
+    if disponible:
+        pct = round(gastado / disponible * 100)
+        lineas.append("• Gastado este mes: " + _plata(gastado) + " de " + _plata(disponible) + " (" + str(pct) + " %)"
+                      + (" ⚠️" if pct >= 90 else ""))
+    return (["💰 <b>Dinero</b>"] + lineas) if lineas else []
+
+
+def _dinero(f):
+    if not leer_json("resumenes.json").get("matutino", {}).get("dinero", True):
+        return []
+    hoy = f.date()
+    lista, gastado, disponible = [], 0.0, 0.0
+    try:
+        from modulos.finanzas import tarjetas
+        lista = tarjetas.resumen_tarjetas(hoy)
+    except Exception:
+        pass
+    try:
+        from modulos.finanzas import presupuesto
+        gastado = presupuesto.gastado_mes(hoy)
+        disponible, _ = presupuesto.disponible_mes(hoy)
+    except Exception:
+        pass
+    return lineas_dinero(hoy, lista, gastado, disponible)
+
+
 def matutino(f):
     hoy = f.date().isoformat()
     vencidas = [t for t in tareas.pendientes(hasta=hoy) if t["entrega"] < hoy]
@@ -69,6 +121,12 @@ def matutino(f):
         lineas += ["", "\U0001F51C <b>Próximos 3 días</b>"] + ["• " + tareas.linea(t) for t in proximas]
     if not (de_hoy or vencidas or proximas) and not [c for c in clases_efectivas(f) if c["nota"] != "cancelada"]:
         lineas += ["", "Un día tranquilo. Que lo disfrute."]
+    try:                                      # tarjetas por vencer y gasto del mes (el mercado va en las noticias)
+        din = _dinero(f)
+        if din:
+            lineas += [""] + din
+    except Exception:
+        pass
     try:                                      # sueño de anoche (datos de la banda o «me voy a dormir») + un consejo
         from modulos.vida import sueno
         linea_sueno = sueno.linea_manana(f)

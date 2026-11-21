@@ -128,16 +128,14 @@ for frase in ["qué ideas tengo del negocio", "idea: un chatbot", "noticias de N
 
 # 2) recoger
 n = E.recoger()
-ok(n == 6, "recoge 6 (sin el duplicado)", n)
+ok(n == 5, "recoge 5 (sin el duplicado ni el fútbol)", n)
 ok(E.recoger() == 0, "la segunda vez no repite")
 lista = E.hallazgos(7, 20)
 titulos = [h["titulo"] for h in lista]
 ok(titulos[0].startswith("Acme IA lanza") and lista[0]["categoria"] == "competidor", "competidor arriba", titulos)
 ok(lista[0]["fuente"] == "El Universo" and " - " not in titulos[0], "fuente separada del titular", lista[0]["fuente"])
-futbol = next(h for h in lista if "Fútbol" in h["titulo"])
-ecu = next(h for h in lista if "Ecuador lanza" in h["titulo"])
-ok(futbol["relevancia"] < ecu["relevancia"], "fútbol menos relevante que IA en Ecuador",
-   (futbol["relevancia"], ecu["relevancia"]))
+ok(not any("Fútbol" in h["titulo"] for h in lista), "el fútbol no entra (no es de IA)", titulos)   # filtro 19-11
+ok(any("Ecuador lanza" in h["titulo"] for h in lista), "IA en Ecuador sí entra", titulos)
 
 # 3) aviso de competidor (máx. 1 por día)
 aviso = E.aviso_competidor()
@@ -196,8 +194,10 @@ ok(moks.get("Mercado Libre invierte en startups latinas") is None or
 ok(all(h["categoria"] != "competidor" for h in E.hallazgos(7, 50) if "zapatos" in h["titulo"]) or print([dict(h) for h in E.hallazgos(7, 50) if "zapatos" in h["titulo"]]),
    "nombre corto sin tema de tecnología no cuenta")
 with E._con() as con:                                  # un error viejo ya guardado se corrige solo
-    con.execute("UPDATE emp_hallazgos SET categoria = 'competidor', competidor = (SELECT id FROM emp_competidores "
-                "WHERE nombre = 'Moks') WHERE titulo LIKE 'Mercado Libre%'")
+    con.execute("INSERT OR IGNORE INTO emp_hallazgos (clave, titulo, enlace, fuente, fecha, resumen, categoria, competidor, "
+                "relevancia, creado) VALUES ('viejo_ml', 'Mercado Libre invierte en startups latinas', 'https://x/ml', '', "
+                "NULL, 'Moks y otras empresas', 'competidor', (SELECT id FROM emp_competidores WHERE nombre = 'Moks'), 9, ?)",
+                (AHORA[0].isoformat(),))       # el filtro (19-11) ya no deja entrar esa noticia: se simula guardada antes
 ok(E.revisar_competidores() >= 1, "corrige lo viejo")
 AHORA[0] = datetime(2026, 11, 14, 9, 0, tzinfo=ZONA)
 av = E.aviso_competidor()

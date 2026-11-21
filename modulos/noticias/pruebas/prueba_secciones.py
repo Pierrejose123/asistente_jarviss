@@ -106,7 +106,7 @@ NOTICIAS = [  # (titulo, entradilla, fuente_config, tipo)
 ]
 a = noticias.ajustes()
 tema_de = {f["nombre"]: f.get("tema") for f in a["fuentes"]}
-ok(a["version"] == 3 and len(a["fuentes"]) >= 20 and a.get("secciones"), "config v3 con fuentes y secciones")
+ok(a["version"] == 5 and len(a["fuentes"]) >= 26 and a.get("secciones"), "config v5 con fuentes y secciones")
 acciones_prueba = noticias.mis_acciones(forzar=True)
 with noticias._con() as con:
     for i, (t, e, fuente, tipo) in enumerate(NOTICIAS):
@@ -151,11 +151,11 @@ ok("s2" not in elegidas, "el fútbol le ganó a una ley de Ecuador")
 ok(sum(1 for c in elegidas if c in ("s6", "s7", "s8")) == 2, "Tecnología debe tener 2")
 ok(len(elegidas) == len(set(elegidas)), "noticia repetida")
 
-# alertas: todo en un solo mensaje
+# alertas: un mensaje por noticia, con lo importante
 with noticias._con() as con:
     con.execute("UPDATE noticias SET evento=1, alertada=0 WHERE clave IN ('s13','s14')")
 alertas_msgs = noticias.alertas_eventos()
-ok(len(alertas_msgs) == 1 and alertas_msgs[0].count("⚡") == 2, "alertas en un mensaje: " + str(alertas_msgs))
+ok(len(alertas_msgs) == 2 and all(m.count("⚡") == 1 and "📌" in m for m in alertas_msgs), "alertas separadas: " + str(alertas_msgs))
 
 print("Casos:", total)
 if fallos:

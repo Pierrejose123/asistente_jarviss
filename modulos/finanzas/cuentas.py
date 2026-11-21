@@ -616,7 +616,7 @@ def estado():
             lineas.append("   desde entonces: " + " · ".join(extra))
     pend = pendientes()
     if pend:
-        lineas.append("\n⏳ Movimientos sin responder: " + str(len(pend)) + " (toque los botones de cada aviso).")
+        lineas.append("\n⏳ Movimientos sin responder: " + str(len(pend)) + " (escriba /pendientes para verlos otra vez, o respóndalos en el panel Mi vida).")
     lineas.append("\nPara corregir: «saldo pichincha 405, produbanco 236».")
     return "\n".join(lineas)
 

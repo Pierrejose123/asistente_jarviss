@@ -171,6 +171,17 @@ async def cmd_pruebas(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_html(texto[i:i + 3900])
 
 
+async def vigilar_ollama(context: ContextTypes.DEFAULT_TYPE):
+    """Cada 2 min: si la IA local (Ollama) no responde, la abre sola. Solo avisa si falla seguido."""
+    try:
+        from modulos.comun import vigilar_ollama as vo
+        aviso = await asyncio.to_thread(vo.revisar)
+        if aviso:
+            await context.bot.send_message(USER_ID, aviso)
+    except Exception as exc:
+        log.warning("Vigilar Ollama falló: %s", exc)
+
+
 async def revision_semanal(context: ContextTypes.DEFAULT_TYPE):
     """Cada 30 min mira si toca (domingo 17:00 o semana saltada). Espera si hay juego o diseño abierto."""
     if _en_juego() or not await asyncio.to_thread(pc_salud.toca_semanal):
@@ -250,3 +261,4 @@ def programar(job_queue):
     job_queue.run_once(avisar_reinicio, when=15, name="aviso_reinicio")      # si la PC se encendió tarde
     job_queue.run_repeating(revision_semanal, interval=1800, first=600, name="pc_semanal")
     job_queue.run_repeating(vigilar_grave, interval=600, first=180, name="pc_grave")
+    job_queue.run_repeating(vigilar_ollama, interval=120, first=60, name="ollama")

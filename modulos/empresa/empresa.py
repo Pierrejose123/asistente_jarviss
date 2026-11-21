@@ -326,12 +326,67 @@ def _perfil_vector():
     return None if m is None else m[0]
 
 
+# --- filtro: solo noticias de IA y bien clasificadas (19-11) --------------------------------------------------
+HABLA_IA = re.compile(r"inteligencia artificial|\bia\b|\bai\b|\ba\.i\.|chatgpt|openai|gemini|anthropic|claude|copilot|"
+                      r"\bllms?\b|chatbots?|agentes? (?:de ia|inteligentes?|virtuales?|autonomos?)|automatiza|"
+                      r"machine learning|aprendizaje automatico|generativ|legaltech|algoritmo|deepseek|mistral|"
+                      r"artificial intelligence|\bagents?\b|automation")
+DEPORTE = re.compile(r"\bmundial\b|\bsub[- ]?\d{2}\b|\bpartido\b|\bgol(?:es)?\b|\bseleccion\b|\bliga\b|\bcopa\b|"
+                     r"futbol|campeonato|\bvence\b|\bempata|\bmarcador\b|eliminatorias|\bdebut\b|tenis|ciclismo|boxeo")
+ECUADOR = re.compile(r"ecuador|quito|guayaquil|cuenca|manta|ambato|loja|machala|samborondon|mintel")
+EUROPA = re.compile(r"espana|espanol(?:a|es|as)?\b|madrid|barcelona|valencia|sevilla|bilbao|navarra|europa|europe|"
+                    r"\buk\b|alemania|francia|italia")
+LATAM = re.compile(r"latinoamerica|latam|america latina|colombia|peru|mexico|chile|argentina|bolivia|venezuela|"
+                   r"uruguay|paraguay|panama|costa rica|guatemala|brasil")
+
+
+def filtrar(c):
+    """La categoría correcta del hallazgo, o None si no sirve (no es de IA, es deporte…). Los de competidores no se tocan."""
+    cat = c.get("categoria")
+    if cat == "competidor":
+        return cat
+    titulo = _sin_tildes(c.get("titulo"))
+    todo = titulo + " " + _sin_tildes(re.sub(r"<[^>]+>", " ", c.get("resumen") or ""))
+    if DEPORTE.search(titulo) and not HABLA_IA.search(titulo):
+        return None
+    if not HABLA_IA.search(todo):
+        return None
+    if cat == "ia_ecuador" and not ECUADOR.search(todo):
+        return "ia_latam" if LATAM.search(todo) and not EUROPA.search(titulo) else "ia_mundo"
+    if cat == "ia_latam" and EUROPA.search(titulo) and not LATAM.search(titulo):
+        return "ia_mundo"
+    return cat
+
+
+def limpiar_guardados(dias=30):
+    """Aplica el filtro a lo ya guardado: borra lo que no sirve y corrige categorías. Devuelve (borrados, movidos)."""
+    desde = (ahora() - timedelta(days=dias)).isoformat()
+    borrados = movidos = 0
+    with closing(_con()) as con, con:
+        for f in con.execute("SELECT * FROM emp_hallazgos WHERE creado >= ? AND categoria != 'competidor'",
+                             (desde,)).fetchall():
+            nueva = filtrar(dict(f))
+            if nueva is None:
+                con.execute("DELETE FROM emp_hallazgos WHERE id = ?", (f["id"],))
+                borrados += 1
+            elif nueva != f["categoria"]:
+                con.execute("UPDATE emp_hallazgos SET categoria = ? WHERE id = ?", (nueva, f["id"]))
+                movidos += 1
+    if borrados or movidos:
+        log.info("Filtro: borré %d hallazgos que no eran de IA y moví %d de categoría", borrados, movidos)
+    return borrados, movidos
+
+
 def recoger():
     """Lee las búsquedas y los competidores. Guarda lo nuevo con su relevancia (0-10). Devuelve cuántos nuevos."""
     from modulos.noticias import noticias
     a = ajustes()
     pedidos = [(b, _url_google(b["q"], b.get("region"), b.get("idioma", "es")), None) for b in a["busquedas"]]
     revisar_competidores()
+    try:
+        limpiar_guardados()
+    except Exception as exc:
+        log.info("Filtro de guardados falló: %s", exc)
     comps = {c["id"]: c for c in competidores()}
     for c in comps.values():
         pedidos.append(({"q": c["nombre"], "cat": "competidor"}, _url_google(_consulta_competidor(c), "EC", dias=7),
@@ -358,9 +413,12 @@ def recoger():
             categoria, de_quien = b["cat"], cid
             if cid is not None and not es_del_competidor(comps[cid], titulo, resumen, enlace):
                 categoria, de_quien = "oportunidad", None     # salió en la búsqueda pero no es de él
-            candidatos.append({"clave": clave, "titulo": titulo, "enlace": enlace, "fuente": fuente,
-                               "fecha": fecha.isoformat() if fecha else None, "resumen": resumen,
-                               "categoria": categoria, "competidor": de_quien})
+            c_nuevo = {"clave": clave, "titulo": titulo, "enlace": enlace, "fuente": fuente,
+                       "fecha": fecha.isoformat() if fecha else None, "resumen": resumen,
+                       "categoria": categoria, "competidor": de_quien}
+            c_nuevo["categoria"] = filtrar(c_nuevo)
+            if c_nuevo["categoria"]:                  # None: no es de IA o es deporte → fuera
+                candidatos.append(c_nuevo)
     if not candidatos:
         return 0
     perfil = None

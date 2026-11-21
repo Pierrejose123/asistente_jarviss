@@ -1,0 +1,442 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Mi vida">
+<meta name="theme-color" content="#0e1014">
+<title>Mi vida</title>
+<style>
+:root{
+  --fondo:#f3f4f8;--tarjeta:#ffffff;--tarjeta2:#f7f8fb;--texto:#14161b;--suave:#6b7280;--tenue:#9ca3af;--linea:#e8eaf0;
+  --acento:#5b5bd6;--acento2:#eef0ff;--bien:#16a34a;--bien2:#e7f6ec;--mal:#dc2626;--mal2:#fdecec;--aviso:#d97706;--aviso2:#fdf3e3;
+  --prof:#3730a3;--rem:#8b5cf6;--lig:#93c5fd;--sombra:0 1px 2px rgba(20,22,27,.04),0 4px 14px rgba(20,22,27,.05)}
+@media (prefers-color-scheme:dark){:root{
+  --fondo:#0e1014;--tarjeta:#171a20;--tarjeta2:#1d2128;--texto:#eceef3;--suave:#9aa1ad;--tenue:#6b7280;--linea:#262a33;
+  --acento:#8b8cf8;--acento2:#23264a;--bien:#34d399;--bien2:#12312a;--mal:#f87171;--mal2:#3a1a1c;--aviso:#fbbf24;--aviso2:#352a12;
+  --prof:#6366f1;--rem:#a78bfa;--lig:#1e40af;--sombra:none}}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--fondo);color:var(--texto);
+  font:15px/1.45 -apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",system-ui,sans-serif;-webkit-tap-highlight-color:transparent}
+header{position:sticky;top:0;z-index:5;background:color-mix(in srgb,var(--fondo) 88%,transparent);backdrop-filter:blur(12px);
+  -webkit-backdrop-filter:blur(12px);padding:calc(env(safe-area-inset-top) + 12px) 18px 10px}
+.cabeza{display:flex;align-items:center;gap:10px;max-width:720px;margin:auto}
+h1{font-size:24px;margin:0;font-weight:700;letter-spacing:-.02em;flex:1}
+.sub{color:var(--suave);font-size:13px;max-width:720px;margin:2px auto 0}
+.punto{width:10px;height:10px;border-radius:50%;background:var(--tenue)}.punto.bien{background:var(--bien)}.punto.mal{background:var(--mal)}
+main{padding:0 14px calc(env(safe-area-inset-bottom) + 90px);max-width:720px;margin:auto}
+.seccion{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--suave);margin:22px 4px 8px}
+.tarjeta{background:var(--tarjeta);border-radius:20px;padding:16px;margin:10px 0;box-shadow:var(--sombra);border:1px solid var(--linea)}
+.tarjeta>h2{font-size:15px;margin:0 0 12px;font-weight:650;display:flex;align-items:center;gap:8px}
+.tarjeta>h2 .extra{margin-left:auto;font-weight:500;font-size:13px;color:var(--suave)}
+.fila{display:flex;align-items:center;gap:12px;padding:10px 0;border-top:1px solid var(--linea)}
+.fila:first-child,.tarjeta>h2+.fila{border-top:0}
+.fila .nombre{flex:1;min-width:0}.det{color:var(--suave);font-size:13px}.tenue{color:var(--tenue)}
+.ico{width:34px;height:34px;border-radius:11px;display:grid;place-items:center;font-size:17px;background:var(--tarjeta2);flex:none}
+.boton{border:0;border-radius:12px;padding:8px 14px;font-size:15px;font-weight:600;background:var(--tarjeta2);color:var(--texto);
+  min-width:46px;min-height:40px}
+.boton.si{background:var(--bien);color:#fff}.boton.no{background:var(--mal);color:#fff}
+.pill{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:600;padding:3px 9px;border-radius:99px;
+  background:var(--tarjeta2);color:var(--suave);white-space:nowrap}
+.pill.bien{background:var(--bien2);color:var(--bien)}.pill.mal{background:var(--mal2);color:var(--mal)}
+.pill.aviso{background:var(--aviso2);color:var(--aviso)}.pill.acento{background:var(--acento2);color:var(--acento)}
+.grande{font-size:32px;font-weight:750;letter-spacing:-.02em;line-height:1.1}.medio{font-size:19px;font-weight:650;letter-spacing:-.01em}
+.rejilla{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}.rejilla.tres{grid-template-columns:repeat(3,1fr)}
+.dato{background:var(--tarjeta2);border-radius:14px;padding:10px 12px}.dato .et{color:var(--suave);font-size:12px;margin-bottom:2px}
+.barra{height:6px;border-radius:99px;background:var(--linea);overflow:hidden;margin-top:6px}
+.barra>i{display:block;height:100%;background:var(--acento);border-radius:99px}
+.consejo{background:var(--acento2);border-radius:14px;padding:10px 12px;margin:10px 0 0;font-size:14px}
+details{margin-top:8px}summary{cursor:pointer;color:var(--acento);font-size:14px;font-weight:600;list-style:none;padding:6px 0}
+summary::-webkit-details-marker{display:none}summary::after{content:" ›";}details[open] summary::after{content:" ⌄"}
+nav{position:fixed;bottom:0;left:0;right:0;display:flex;background:color-mix(in srgb,var(--tarjeta) 92%,transparent);
+  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-top:1px solid var(--linea);
+  padding:6px 4px calc(env(safe-area-inset-bottom) + 6px);z-index:6}
+nav button{flex:1;border:0;background:none;color:var(--tenue);font-size:11px;font-weight:600;padding:4px 0}
+nav button b{display:block;font-size:21px;font-weight:400;filter:grayscale(1);opacity:.75}
+nav button.activo{color:var(--acento)}nav button.activo b{filter:none;opacity:1}
+.oculto{display:none}.vacio{color:var(--suave);font-size:14px;padding:4px 0}
+.semana{width:100%;border-collapse:collapse;font-size:13px}.semana td,.semana th{text-align:center;padding:5px 2px}
+.semana th{color:var(--suave);font-weight:500}.semana td:first-child{text-align:left;white-space:nowrap}
+svg text{fill:var(--suave);font-size:10px}
+.borrador{white-space:pre-wrap;font-size:14px;background:var(--tarjeta2);border-radius:12px;padding:10px;margin:6px 0}
+a{color:var(--acento);text-decoration:none}
+.error{background:var(--mal);color:#fff;padding:10px 14px;border-radius:14px;margin:12px 0}
+.linea-tiempo .fila{align-items:flex-start}.hora{font-variant-numeric:tabular-nums;font-weight:650;width:48px;flex:none;padding-top:2px}
+.pasado{opacity:.45}.ahora{border-left:3px solid var(--acento);padding-left:9px;margin-left:-12px}
+.tj{background:var(--tarjeta);border-radius:20px;margin:10px 0;box-shadow:var(--sombra);border:1px solid var(--linea);overflow:hidden}
+.tj-cab{display:flex;align-items:center;gap:12px;padding:14px 16px}
+.tj-logo{width:44px;height:30px;border-radius:7px;display:grid;place-items:center;color:#fff;font-size:12px;font-weight:800;letter-spacing:.05em;flex:none;box-shadow:inset 0 0 0 1px rgba(255,255,255,.15)}
+.tj-cuerpo{padding:0 16px 14px}
+.dif{display:grid;grid-template-columns:1fr auto;gap:2px 10px;padding:9px 0;border-top:1px solid var(--linea)}
+.dif .n{font-size:14px;font-weight:550;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.dif .c{font-weight:650;font-variant-numeric:tabular-nums}
+.dif .b{grid-column:1/-1;display:flex;align-items:center;gap:8px}.dif .b .barra{flex:1;margin:0}
+.num{font-variant-numeric:tabular-nums}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.buscador{width:100%;box-sizing:border-box;font:inherit;font-size:16px;padding:10px 12px;border-radius:12px;border:1px solid var(--borde,#ddd);
+  background:var(--tarjeta);color:inherit;margin-bottom:10px}
+.filtro{cursor:pointer;border:0;font:inherit}.filtro.si{background:var(--acento);color:#fff}
+.nota-txt{white-space:pre-wrap;word-break:break-word}
+</style>
+</head>
+<body>
+<header><div class="cabeza"><h1 id="titulo">Mi vida</h1><span id="estado" class="punto" title="Estado del asistente"></span></div>
+<div class="sub" id="sub">Cargando…</div></header>
+<main>
+<div id="error" class="error oculto"></div>
+<section id="v-hoy"></section>
+<section id="v-sueno" class="oculto"></section>
+<section id="v-dinero" class="oculto"></section>
+<section id="v-empresa" class="oculto"></section>
+<section id="v-equipo" class="oculto"></section>
+<section id="v-cerebro" class="oculto"></section>
+<section id="v-mas" class="oculto"></section>
+</main>
+<nav>
+<button data-v="hoy" class="activo"><b>☀️</b>Hoy</button>
+<button data-v="sueno"><b>🌙</b>Sueño</button>
+<button data-v="dinero"><b>💵</b>Dinero</button>
+<button data-v="empresa"><b>🚀</b>Empresa</button>
+<button data-v="equipo"><b>🤖</b>Equipo</button>
+<button data-v="cerebro"><b>🧠</b>Cerebro</button>
+<button data-v="mas"><b>☰</b>Más</button>
+</nav>
+<script>
+const $=s=>document.querySelector(s);let D=null;
+const esc=t=>String(t??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const usd=n=>"$"+Number(n||0).toLocaleString("es-EC",{minimumFractionDigits:2,maximumFractionDigits:2});
+const usd0=n=>"$"+Math.round(Number(n||0)).toLocaleString("es-EC");
+const hm=m=>m==null?"—":Math.floor(m/60)+"h "+String(Math.round(m%60)).padStart(2,"0");
+const pct=n=>(n>=0?"+":"−")+Math.abs(n).toFixed(1)+" %";
+const dia=f=>["dom","lun","mar","mié","jue","vie","sáb"][new Date(f+"T12:00").getDay()];
+const fc=f=>f?f.slice(8,10)+"/"+f.slice(5,7):"—";
+const MES=["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
+function tarjeta(t,h,extra){return `<div class="tarjeta"><h2>${t}${extra?`<span class="extra">${extra}</span>`:""}</h2>${h}</div>`}
+const seccion=t=>`<div class="seccion">${t}</div>`;
+function anillo(p,color,tam=46){const r=(tam-6)/2,c=2*Math.PI*r,v=Math.max(0,Math.min(1,p));
+  return `<svg width="${tam}" height="${tam}" viewBox="0 0 ${tam} ${tam}"><circle cx="${tam/2}" cy="${tam/2}" r="${r}" fill="none" stroke="var(--linea)" stroke-width="5"/>
+  ${v>0?`<circle cx="${tam/2}" cy="${tam/2}" r="${r}" fill="none" stroke="${color}" stroke-width="5" stroke-linecap="round" stroke-dasharray="${c*v} ${c}" transform="rotate(-90 ${tam/2} ${tam/2})"/>`:""}</svg>`}
+function linea(vals,color,W=120,H=34){const v=vals.filter(x=>x!=null);if(v.length<2)return"";const lo=Math.min(...v),hi=Math.max(...v),r=hi-lo||1;
+  const pts=vals.map((x,i)=>x==null?null:[i*(W/(vals.length-1)),H-3-(x-lo)/r*(H-6)]).filter(Boolean);
+  return `<svg width="100%" height="${H}" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"><polyline fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" points="${pts.map(p=>p.join(",")).join(" ")}"/></svg>`}
+async function cargar(){
+  try{const r=await fetch("api/datos",{cache:"no-store"});if(!r.ok)throw new Error("HTTP "+r.status);D=await r.json();
+    $("#error").classList.add("oculto");pintar();}
+  catch(e){$("#error").textContent="No pude hablar con la PC ("+e.message+"). ¿Está encendida y con Tailscale?";$("#error").classList.remove("oculto");}
+}
+async function marcar(h,a){
+  try{const r=await fetch("api/habito",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({habito:h,accion:a})});
+    const j=await r.json();if(j.hoy){D.hoy=j.hoy;pintarHoy();}}catch(e){alert("No se guardó: "+e.message)}
+}
+function pintar(){
+  $("#titulo").textContent=D.hoy?("Hoy, "+D.hoy.dia):"Mi vida";$("#sub").textContent="Actualizado "+D.generado;
+  const s=D.sistema;const mal=s&&s.piezas?s.piezas.filter(p=>p.estado!=="✅").length:0;
+  $("#estado").className="punto"+(s&&s.piezas?(mal?" mal":" bien"):"");
+  for(const f of [pintarHoy,pintarSueno,pintarDinero,pintarEmpresa,pintarEquipo,pintarMas]){try{f()}catch(e){console.error(e)}}
+}
+
+/* ---------------- HOY ---------------- */
+function filaHabito(h){
+  const r=D.hoy.rachas[h.id];
+  if(h.tipo==="contador"){
+    return `<div class="fila"><span class="ico">${h.emoji}</span><span class="nombre">${esc(h.nombre)}<div class="det">${h.valor||0} ${esc(h.unidad)} hoy</div></span>
+    <button class="boton" onclick="marcar('${h.id}','menos')">−</button><button class="boton si" onclick="marcar('${h.id}','mas')">+1</button></div>`;}
+  const est=h.valor===1?"si":h.valor===0?"no":"",sig=h.valor===1?"no":h.valor===0?"borrar":"si",txt=h.valor===1?"✓":h.valor===0?"✗":"Marcar";
+  const det=(h.libre?"cuando toque":h.toca?"hoy":"hoy no toca")+(r>=2?" · racha "+r+" 🔥":"");
+  return `<div class="fila"><span class="ico">${h.emoji}</span><span class="nombre">${esc(h.nombre)}<div class="det">${det}</div></span>
+  <button class="boton ${est}" onclick="marcar('${h.id}','${sig}')">${txt}</button></div>`;
+}
+const ICO_AG={clase:"🎓",estudio:"📚",recordatorio:"🔔",actividad:"🗓️"};
+function pintarAgenda(){
+  const a=D.agenda;if(!a)return"";
+  if(!a.length)return tarjeta("Agenda de hoy",'<div class="vacio">Día libre: sin clases ni actividades.</div>');
+  const ya=D.hoy?D.hoy.hora:"";let marcado=false;
+  return tarjeta("Agenda de hoy",`<div class="linea-tiempo">`+a.map(x=>{
+    const ahora=!marcado&&!x.pasado&&x.inicio<=ya&&(x.fin||x.inicio)>=ya;if(ahora)marcado=true;
+    return `<div class="fila ${x.pasado?"pasado":""} ${ahora?"ahora":""}"><span class="hora">${esc(x.inicio)}</span><span class="nombre">${ICO_AG[x.tipo]||"•"} ${esc(x.titulo)}
+    <div class="det">${x.fin&&x.fin!==x.inicio?"hasta "+esc(x.fin):""}${x.nota==="cancelada"?" · cancelada":x.nota==="movida"?" · movida":""}</div></span></div>`}).join("")+`</div>`,a.length+"");
+}
+function filaDeber(t){
+  const urg=t.vencida?"mal":(t.cuando==="hoy"||t.cuando==="mañana")?"aviso":"";
+  return `<div class="fila"><span class="ico">${t.vencida?"❗":"📝"}</span><span class="nombre">${esc(t.titulo)}
+    <div class="det">${esc(t.materia)}</div>
+    <div class="chips" style="margin-top:5px"><span class="pill ${urg}">Entrega ${esc(t.cuando)}${t.hora?" "+esc(t.hora):""}</span>
+    ${t.cierre?`<span class="pill">Cierra ${esc(t.cierre_cuando)}${t.cierre_hora?" "+esc(t.cierre_hora):""}</span>`:""}
+    ${chipMoodle(t)}</div></span></div>`;
+}
+function chipMoodle(t){
+  if(!t.moodle_estado)return "";
+  const h=t.moodle_revisado?" ("+esc(t.moodle_revisado)+")":"";
+  if(t.moodle_estado==="draft")return `<span class="pill aviso">Moodle: borrador sin enviar${h}</span>`;
+  return `<span class="pill ${t.vencida?"mal":""}">Moodle: sin entregar${h}</span>`;
+}
+function pintarMoodle(){
+  const m=D.moodle;if(!m||(!m.revision&&!m.entregados.length))return "";
+  let h=m.entregados.map(e=>`<div class="fila"><span class="ico">✅</span><span class="nombre">${esc(e.titulo)}
+    <div class="det">${e.materia&&e.materia!=="General"?esc(e.materia)+" · ":""}visto entregado ${esc(e.visto)}</div></span></div>`).join("")
+    ||'<div class="vacio">Todavía no he visto entregas nuevas.</div>';
+  const r=m.revision;
+  if(r)h+=`<div class="det" style="margin-top:8px">${r.errores?"⚠️":"🔄"} Última revisión: ${esc(r.cuando)} · ${r.revisados} deber(es) revisado(s)`+
+    (r.errores?` · ${r.errores} sin poder ver${r.ultimo_error?": "+esc(r.ultimo_error):""}`:"")+`</div>`;
+  return tarjeta("Entregados en Moodle",h,m.entregados.length||"");
+}
+function filaRecordatorio(r){
+  return `<div class="fila"><span class="ico">🔔</span><span class="nombre">${esc(r.texto)}<div class="det">${r.materia?esc(r.materia)+" · ":""}recordatorio (no está en Moodle)</div>
+    <div class="chips" style="margin-top:5px"><span class="pill acento">${esc(r.cuando)} ${esc(r.hora)}</span></div></span></div>`;
+}
+function pintarHoy(){
+  let h=pintarAgenda();
+  if(D.hoy)h+=tarjeta("Hábitos de hoy",D.hoy.habitos.map(filaHabito).join("")||'<div class="vacio">Sin hábitos activos.</div>');
+  const n=D.sueno&&D.sueno.noches.length?D.sueno.noches[D.sueno.noches.length-1]:null;
+  if(n&&D.hoy&&n.fecha===D.hoy.fecha){
+    h+=tarjeta("Anoche",`<div class="rejilla"><div class="dato"><div class="et">Se durmió</div><div class="medio">${n.dormir}</div></div>
+    <div class="dato"><div class="et">Durmió</div><div class="medio">${hm(n.total)}</div></div></div>`+
+    (D.sueno.analisis.consejos[0]?`<div class="consejo">💡 ${esc(D.sueno.analisis.consejos[0])}</div>`:""));
+  }else if(D.hoy){h+=tarjeta("Anoche",`<div class="vacio">Sin datos de la banda todavía. Meta: dormir antes de las ${D.hoy.meta_dormir}.</div>`);}
+  const prox=(D.tareas||[]).filter(t=>t.vencida||["hoy","mañana"].includes(t.cuando)||(new Date(t.entrega+"T12:00")-new Date())/864e5<=7);
+  const rec=(D.recordatorios||[]).filter(r=>(new Date(r.fecha+"T12:00")-new Date())/864e5<=7);
+  if(D.tareas||D.recordatorios)h+=tarjeta("Deberes de la semana",(prox.map(filaDeber).join("")+rec.map(filaRecordatorio).join(""))||'<div class="vacio">Nada pendiente esta semana. 🎉</div>',(prox.length+rec.length)||"");
+  h+=pintarMoodle();
+  if(D.ingles&&D.ingles.para_hoy)h+=tarjeta("Inglés",`<div class="fila"><span class="ico">🇬🇧</span><span class="nombre">${D.ingles.para_hoy} palabra(s) para repasar hoy
+    <div class="det">${D.ingles.aprendidas} aprendidas de ${D.ingles.total} · en Telegram: /repaso</div></span></div>`);
+  if(D.semana)h+=tarjeta("Últimos 7 días",tablaSemana());
+  $("#v-hoy").innerHTML=h;
+}
+function tablaSemana(){
+  const s=D.semana;let t=`<table class="semana"><tr><th></th>${s.dias.map(d=>`<th>${dia(d)}</th>`).join("")}</tr>`;
+  for(const h of s.habitos){if(h.celdas.every(c=>c==="·"))continue;
+    t+=`<tr><td>${h.emoji} ${esc(h.nombre)}</td>`+h.celdas.map(c=>`<td>${h.tipo==="contador"?(typeof c==="number"?c:"·"):c===1?"✅":c===0?"➖":c===null?"❔":"·"}</td>`).join("")+"</tr>";}
+  return t+"</table>";
+}
+
+/* ---------------- SUEÑO ---------------- */
+function grafSueno(noches){
+  if(!noches.length)return '<div class="vacio">Todavía no hay noches registradas.</div>';
+  const W=340,H=180,top=8,bot=22,n=noches.length,bw=Math.min(18,(W-30)/n-6),max=Math.max(540,...noches.map(x=>x.total||0));
+  const y=v=>H-bot-(v/max)*(H-top-bot);let s=`<svg viewBox="0 0 ${W} ${H}" width="100%">`;
+  [240,360,480].forEach(v=>{s+=`<line x1="24" x2="${W}" y1="${y(v)}" y2="${y(v)}" stroke="currentColor" opacity=".08"/><text x="0" y="${y(v)+3}">${v/60}h</text>`});
+  noches.forEach((x,i)=>{const cx=30+i*((W-30)/n)+((W-30)/n-bw)/2;let base=H-bot;
+    if(x.profundo!=null){[["profundo","var(--prof)"],["rem","var(--rem)"],["ligero","var(--lig)"]].forEach(([k,c])=>{const h=(x[k]||0)/max*(H-top-bot);
+      s+=`<rect x="${cx}" y="${base-h}" width="${bw}" height="${h}" fill="${c}" rx="3"/>`;base-=h;});}
+    else if(x.total){const h=x.total/max*(H-top-bot);s+=`<rect x="${cx}" y="${base-h}" width="${bw}" height="${h}" fill="var(--acento)" rx="4"/>`;}
+    s+=`<text x="${cx+bw/2}" y="${H-7}" text-anchor="middle">${dia(x.fecha)}</text>`;});
+  return s+"</svg>";
+}
+function grafHora(noches,meta){
+  const con=noches.filter(x=>x.dormir18!=null);if(!con.length)return"";
+  const [mh,mm]=meta.split(":").map(Number),m18=mh*60+mm-1080;
+  const W=340,H=110,lo=Math.min(m18-60,...con.map(x=>x.dormir18))-15,hi=Math.max(m18+60,...con.map(x=>x.dormir18))+15;
+  const y=v=>8+(v-lo)/(hi-lo)*(H-30),n=noches.length;let s=`<svg viewBox="0 0 ${W} ${H}" width="100%">`;
+  s+=`<line x1="24" x2="${W}" y1="${y(m18)}" y2="${y(m18)}" stroke="var(--bien)" stroke-dasharray="4 4"/><text x="0" y="${y(m18)+3}">${meta}</text>`;
+  noches.forEach((x,i)=>{if(x.dormir18==null)return;const cx=30+i*((W-30)/n)+8;
+    s+=`<circle cx="${cx}" cy="${y(x.dormir18)}" r="5" fill="${x.dormir18<=m18+5?"var(--bien)":"var(--aviso)"}"/><text x="${cx}" y="${H-5}" text-anchor="middle">${dia(x.fecha)}</text>`;});
+  return s+"</svg>";
+}
+function tileSalud(et,vals,fmt,color){const v=vals.filter(x=>x!=null),u=v.length?v[v.length-1]:null;
+  return `<div class="dato"><div class="et">${et}</div><div class="medio num">${u!=null?fmt(u):"—"}</div>${linea(vals,color)}</div>`}
+function pintarSueno(){
+  if(!D.sueno){$("#v-sueno").innerHTML=tarjeta("Sueño",'<div class="vacio">Sin datos.</div>');return;}
+  const a=D.sueno.analisis,meta=D.hoy?D.hoy.meta_dormir:"22:00";let h="";
+  if(a.noches)h+=tarjeta("Últimos 14 días",`<div class="rejilla">
+    <div class="dato"><div class="et">Hora media de dormir</div><div class="medio">${a.hora_media}</div></div>
+    <div class="dato"><div class="et">Noches en meta (${meta})</div><div class="medio">${a.en_meta}/${a.noches}</div></div>
+    <div class="dato"><div class="et">Duración media</div><div class="medio">${hm(a.total_medio)}</div></div>
+    <div class="dato"><div class="et">Sueño profundo</div><div class="medio">${a.profundo_pct!=null?a.profundo_pct+" %":"—"}</div></div></div>`);
+  h+=tarjeta("Cuánto durmió",grafSueno(D.sueno.noches)+'<div class="det"><span style="color:var(--prof)">●</span> profundo &nbsp;<span style="color:var(--rem)">●</span> REM &nbsp;<span style="color:var(--lig)">●</span> ligero</div>');
+  h+=tarjeta("A qué hora se durmió",grafHora(D.sueno.noches,meta)||'<div class="vacio">Sin datos.</div>');
+  const s=D.salud||[];
+  const col=k=>s.map(x=>x[k]);const hay=k=>col(k).some(v=>v!=null);
+  if(s.length){h+=tarjeta("Su cuerpo",`<div class="rejilla">
+    ${tileSalud("Pulso en reposo",col("pulso_reposo"),v=>Math.round(v)+" lpm","var(--mal)")}
+    ${tileSalud("Oxígeno",col("spo2"),v=>Math.round(v)+" %","var(--acento)")}
+    ${tileSalud("Variabilidad (VFC)",col("vfc"),v=>Math.round(v)+" ms","var(--rem)")}
+    ${tileSalud("Pasos",col("pasos"),v=>Math.round(v).toLocaleString("es-EC"),"var(--bien)")}</div>`+
+    (!hay("pulso_reposo")&&!hay("spo2")?'<div class="consejo">Pulso y oxígeno aparecen cuando el atajo del iPhone los manda. Vea cómo en Más → Atajo de salud. Si Zepp no los guarda en Apple Salud, aquí solo verá el sueño.</div>':""),"14 días");}
+  if(a.consejos&&a.consejos.length)h+=tarjeta("Consejos",a.consejos.map(c=>`<div class="consejo">💡 ${esc(c)}</div>`).join(""));
+  $("#v-sueno").innerHTML=h;
+}
+
+/* ---------------- DINERO ---------------- */
+const COLOR_TJ={"Pichincha Platinum":["#e0a800","BP"],"Produbanco Gold":["#0a7c4a","PB"],"Diners":["#1f3c88","DC"]};
+function pintarTarjeta(x){
+  const [color,sigla]=COLOR_TJ[x.tarjeta]||["#555","TJ"];
+  const q=x.total?x.pagado/x.total:0,dias=x.fecha_max?Math.round((new Date(x.fecha_max+"T12:00")-new Date())/864e5):null;
+  let estado="";
+  if(x.fecha_max){estado=x.pagada?'<span class="pill bien">✓ Pagada</span>':
+    `<span class="pill ${dias!=null&&dias<=3?"mal":"aviso"}">Falta ${usd0(x.falta)}</span>`;}
+  const propios=x.diferidos.filter(d=>!d.otro),ajenos=x.diferidos.filter(d=>d.otro);
+  let cuerpo="";
+  if(x.fecha_max)cuerpo+=`<div class="rejilla tres" style="margin-bottom:6px">
+    <div class="dato"><div class="et">Vence</div><div class="medio">${fc(x.fecha_max)}</div></div>
+    <div class="dato"><div class="et">Total</div><div class="medio num">${usd0(x.total)}</div></div>
+    <div class="dato"><div class="et">Mínimo</div><div class="medio num">${x.minimo?usd0(x.minimo):"—"}</div></div></div>`;
+  const filaDif=d=>{const p=d.total_cuotas?d.pagadas/d.total_cuotas*100:0;
+    return `<div class="dif"><span class="n">${esc(d.descripcion)}${d.otro?' <span class="pill">👥 '+esc(d.otro.dueno)+'</span>':""}</span><span class="c">${usd0(d.cuota)}<span class="det">/mes</span></span>
+    <span class="b"><span class="barra"><i style="width:${p}%;${d.otro?"background:var(--tenue)":""}"></i></span><span class="det num">${d.pagadas||0}/${d.total_cuotas} · ${esc(d.hasta_texto)}</span></span></div>`};
+  if(propios.length)cuerpo+=propios.map(filaDif).join("");
+  if(ajenos.length)cuerpo+=`<details><summary>Lo pagan otras personas (${ajenos.length})</summary>${ajenos.map(filaDif).join("")}</details>`;
+  if(x.pagos.length)cuerpo+=`<details><summary>Pagos (${x.pagos.length})</summary>${x.pagos.map(p=>`<div class="fila"><span class="nombre">${fc(p.fecha)} <span class="det">${esc(p.origen)}</span></span><span class="num">${usd(p.monto)}</span></div>`).join("")}</details>`;
+  if(!x.fecha_max&&!x.diferidos.length)cuerpo='<div class="vacio">Sin estado de cuenta todavía.</div>';
+  return `<div class="tj"><div class="tj-cab"><span class="tj-logo" style="background:${color}">${sigla}</span>
+    <span class="nombre" style="flex:1"><b>${esc(x.tarjeta)}</b><div class="det">${propios.length?propios.length+" diferido(s) · "+usd0(x.cuota_proximo_mes)+"/mes":"sin diferidos propios"}</div></span>
+    ${x.fecha_max?`<span style="position:relative;display:grid;place-items:center">${anillo(q,x.pagada?"var(--bien)":"var(--acento)",44)}<span style="position:absolute;font-size:10px;font-weight:700">${Math.round(q*100)}%</span></span>`:""}</div>
+    <div class="tj-cuerpo">${estado?`<div style="margin:-4px 0 10px">${estado}</div>`:""}${cuerpo}</div></div>`;
+}
+function pintarCuotas(t){
+  const meses=t.cuotas_meses;if(!meses.some(m=>m.total))return"";
+  const max=Math.max(...meses.map(m=>m.total))||1,W=320,H=110,bw=W/meses.length-14;
+  let s=`<svg viewBox="0 0 ${W} ${H}" width="100%">`;
+  meses.forEach((m,i)=>{const h=(m.total/max)*(H-34),x=i*(W/meses.length)+7;
+    s+=`<rect x="${x}" y="${H-20-h}" width="${bw}" height="${h}" rx="5" fill="var(--acento)" opacity="${i?0.55:1}"/>
+    <text x="${x+bw/2}" y="${H-20-h-4}" text-anchor="middle">${m.total?usd0(m.total):""}</text><text x="${x+bw/2}" y="${H-5}" text-anchor="middle">${MES[+m.mes.slice(5,7)-1]}</text>`;});
+  s+="</svg>";
+  const p=t.pct_sueldo;
+  return tarjeta("Cuotas de los próximos meses",s+(p!=null?`<div class="det" style="margin-top:4px">${p>t.limite?'<span class="pill mal">🚩 '+p+' % del sueldo</span> mejor no diferir más':'El próximo mes: <b>'+p+' %</b> de su sueldo (prudente: hasta '+t.limite+' %)'}</div>`:""));
+}
+function filaPend(p){
+  const cats=(D.dinero.cuentas.lista_pend[0]||{}).categorias||[];
+  const bs=p.botones.map(b=>b.a==="gasto"
+    ?`<button class="boton" onclick="document.getElementById('cats${p.id}').classList.toggle('oculto')">${esc(b.t)}</button>`
+    :`<button class="boton" onclick="responderMov(${p.id},'${b.a}','${esc(b.x)}')">${esc(b.t)}</button>`).join(" ");
+  const cs=cats.map((c,i)=>`<button class="boton" onclick="responderMov(${p.id},'cat','${i}')">${esc(c)}</button>`).join(" ");
+  return `<div style="padding:8px 0;border-bottom:1px solid var(--borde,#8883)"><div style="font-size:14px;margin-bottom:6px">${esc(p.texto)}</div>
+    <div class="chips">${bs}</div><div id="cats${p.id}" class="chips oculto" style="margin-top:6px">${cs}</div></div>`;
+}
+async function responderMov(id,a,x){
+  try{const r=await fetch("api/cuenta",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({id:id,accion:a,extra:x})});
+    const j=await r.json();if(!r.ok)throw new Error(j.error||("HTTP "+r.status));
+    if(j.dinero)D.dinero=j.dinero;pintarDinero();if(j.texto)alert(j.texto);}catch(e){alert("No se guardó: "+e.message)}
+}
+function pintarDinero(){
+  const d=D.dinero;if(!d){$("#v-dinero").innerHTML=tarjeta("Dinero",'<div class="vacio">Sin datos.</div>');return;}
+  const q=d.disponible?d.gastado/d.disponible*100:0,rapido=q>d.avance_mes+10;
+  let h=tarjeta("Este mes",`<div style="display:flex;align-items:center;gap:14px"><div style="flex:1"><div class="grande num">${usd(d.gastado)}</div>
+    <div class="det">gastado${d.disponible?" de "+usd(d.disponible):""} · mes al ${d.avance_mes} %</div></div>
+    ${d.disponible?`<span style="position:relative;display:grid;place-items:center">${anillo(q/100,rapido?"var(--mal)":"var(--acento)",58)}<span style="position:absolute;font-size:12px;font-weight:700">${Math.round(q)}%</span></span>`:""}</div>
+    ${rapido?'<div class="consejo" style="background:var(--mal2)">Va gastando más rápido de lo que avanza el mes.</div>':""}`);
+  if(d.cuentas&&d.cuentas.lista.length)h+=tarjeta("Cuentas del banco",`<div class="rejilla">${d.cuentas.lista.map(c=>`<div class="dato"><div class="et">🏦 ${esc(c.nombre)}</div><div class="medio num">${usd(c.saldo)}</div><div class="det">corregido ${fc(c.desde)}</div></div>`).join("")}</div>`+
+    "","estimado");
+  if(d.cuentas&&d.cuentas.lista_pend&&d.cuentas.lista_pend.length)h+=tarjeta("⏳ Movimientos por responder",d.cuentas.lista_pend.map(filaPend).join(""),String(d.cuentas.lista_pend.length));
+  if(d.tarjetas){h+=seccion("Tarjetas de crédito")+d.tarjetas.tarjetas.map(pintarTarjeta).join("")+pintarCuotas(d.tarjetas);}
+  h+=seccion("Lo que construye");
+  if(d.inversion){const v=d.inversion;h+=tarjeta("📈 Inversión",`<div class="rejilla"><div class="dato"><div class="et">Este mes</div><div class="medio num">${usd(v.mes)}</div></div>
+    <div class="dato"><div class="et">En ${new Date().getFullYear()}</div><div class="medio num">${usd(v.anio)}</div></div></div>`+
+    v.lista.map(m=>`<div class="fila"><span class="nombre">${esc(m.descripcion)}<div class="det">${fc(m.fecha)}</div></span><span class="num">${usd(m.monto)}</span></div>`).join("")+
+    '<div class="det" style="margin-top:6px">No cuenta como gasto: es su dinero pasando a su cuenta de inversión.</div>');}
+  if(d.ahorros&&d.ahorros.lista.length)h+=tarjeta("Ahorros",d.ahorros.lista.map(a=>`<div class="fila"><span class="ico">${a.icono||"🎯"}</span><span class="nombre">${esc(a.nombre)}
+    <div class="det">${a.aporte?usd0(a.aporte)+"/mes"+(a.dia?" el "+a.dia:""):""}${a.meta?" · meta "+usd0(a.meta):""}</div>${a.meta?`<div class="barra"><i style="width:${Math.min(100,a.saldo/a.meta*100)}%"></i></div>`:""}</span>
+    <span class="medio num">${usd(a.saldo)}</span></div>`).join(""),usd(d.ahorros.total));
+  if(d.portafolio){const p=d.portafolio;h+=tarjeta("Portafolio XTB",p.calculando?'<div class="vacio">Calculando precios… vuelva en un minuto.</div>':
+    `<div class="rejilla"><div class="dato"><div class="et">Total</div><div class="medio" style="color:${p.ganancia_pct>=0?"var(--bien)":"var(--mal)"}">${pct(p.ganancia_pct)}</div></div>
+    <div class="dato"><div class="et">Hoy</div><div class="medio">${pct(p.hoy_pct)}</div></div></div>`+
+    p.acciones.map(a=>`<div class="fila"><span class="nombre">${esc(a.nombre)}<div class="barra"><i style="width:${a.peso}%"></i></div></span><span class="det">${a.peso} %</span><span class="num" style="color:${a.ganancia_pct>=0?"var(--bien)":"var(--mal)"}">${pct(a.ganancia_pct)}</span></div>`).join(""),
+    p.calculado?"calculado "+esc(p.calculado):"");}
+  if(D.bolsa){const b=D.bolsa;h+=tarjeta("Bolsa",(b.eventos.length?'<div class="det">Próximas fechas</div>'+b.eventos.map(e=>`<div class="fila"><span class="ico">${e.tipo.startsWith("resultados")?"📊":"💵"}</span><span class="nombre"><b>${esc(e.ticker)}</b> · ${esc(e.tipo)}</span><span class="pill">${fc(e.fecha)}</span></div>`).join(""):"")+
+    (b.alertas.length?'<div class="det" style="margin-top:8px">Alertas activas</div>'+b.alertas.map(a=>`<div class="fila"><span class="ico">🔔</span><span class="nombre">${esc(a.texto)}</span><span class="pill">#${a.id}</span></div>`).join(""):""));}
+  h+=seccion("Detalle del mes");
+  if(d.presupuestos.length)h+=tarjeta("Presupuestos",d.presupuestos.map(p=>{const q=p.gastado/p.limite*100;
+    return `<div style="margin:8px 0"><div style="display:flex"><span class="nombre" style="flex:1">${esc(p.nombre)}</span><span class="det num">${usd0(p.gastado)} / ${usd0(p.limite)}</span></div>
+    <div class="barra"><i style="width:${Math.min(100,q)}%;background:${q>=100?"var(--mal)":q>=80?"var(--aviso)":"var(--acento)"}"></i></div></div>`}).join(""));
+  if(d.categorias.length){const max=d.categorias[0].monto||1;h+=tarjeta("En qué se fue",d.categorias.map(c=>`<div style="margin:8px 0"><div style="display:flex"><span class="nombre" style="flex:1">${esc(c.nombre)}</span><span class="num">${usd(c.monto)}</span></div>
+    <div class="barra"><i style="width:${c.monto/max*100}%;opacity:.8"></i></div></div>`).join(""));}
+  if(d.deudas&&d.deudas.lista.length)h+=tarjeta("Deudas",`<div class="rejilla"><div class="dato"><div class="et">Le deben</div><div class="medio num" style="color:var(--bien)">${usd(d.deudas.me_deben)}</div></div>
+    <div class="dato"><div class="et">Usted debe</div><div class="medio num">${usd(d.deudas.debo)}</div></div></div>`+
+    d.deudas.lista.map(x=>`<div class="fila"><span class="nombre">${esc(x.persona)}<div class="det">${x.sentido==="me_debe"?"le debe":"usted le debe"}</div></span><span class="num">${usd(x.saldo)}</span></div>`).join(""));
+  $("#v-dinero").innerHTML=h;
+}
+
+/* ---------------- EMPRESA / EQUIPO ---------------- */
+function copiar(i){const t=D.empresa.borradores[i].texto;navigator.clipboard&&navigator.clipboard.writeText(t).then(()=>alert("Copiado"),()=>{})}
+function pintarEmpresa(){
+  const e=D.empresa;if(!e){$("#v-empresa").innerHTML=tarjeta("Empresa",'<div class="vacio">Sin datos.</div>');return;}
+  let h="";const inf=e.informe,cu=e.informe_cuando||{};
+  if(inf){
+    h+=tarjeta("Informe de la semana",`<div>${esc(inf.resumen)}</div>`,esc(inf.fecha));
+    if(inf.novedades.length)h+=tarjeta("Lo que importa",inf.novedades.map(n=>`<div class="fila"><span class="nombre"><a href="${esc(n.enlace)}" target="_blank" rel="noopener">${esc(n.titulo)}</a><div class="det">${esc(n.por_que)}</div></span></div>`).join(""));
+    h+=tarjeta("Competencia",`<div>${esc(inf.competencia||"Sin novedades.")}</div>`);
+    if(inf.oportunidades.length)h+=tarjeta("Oportunidades",inf.oportunidades.map(x=>`<div class="consejo">💡 ${esc(x)}</div>`).join(""));
+    if(inf.acciones.length)h+=tarjeta("Para esta semana",inf.acciones.map(x=>`<div class="fila"><span class="ico">☐</span><span class="nombre">${esc(x)}</span></div>`).join(""));
+  }else{h+=tarjeta("Informe semanal",`<div class="vacio">El primero llega el ${esc(cu.dia||"viernes")} a las ${esc(cu.hora||"17:30")}. También: «informe de la empresa» en Telegram.</div>`);}
+  if(e.plan)h+=tarjeta("Lo que sé de su empresa",e.plan.map(x=>`<div class="fila"><span class="nombre">${esc(x.campo)}<div class="det">${esc(x.valor||"(por definir)")}</div></span></div>`).join(""));
+  if(e.borradores.length)h+=tarjeta("Borradores para redes",e.borradores.map((b,i)=>`<div style="margin:8px 0"><div style="display:flex;align-items:center;gap:8px">
+    <span class="pill acento">${esc(b.red)}</span><span class="nombre" style="flex:1">${esc(b.tema)}</span><button class="boton" onclick="copiar(${i})">Copiar</button></div>
+    <div class="borrador">${esc(b.texto)}</div></div>`).join(""));
+  h+=tarjeta("Investigado esta semana",e.hallazgos.length?e.hallazgos.map(x=>`<div class="fila"><span class="nombre"><a href="${esc(x.enlace)}" target="_blank" rel="noopener">${esc(x.titulo)}</a>
+    <div class="det">${esc(x.categoria)}${x.fuente?" · "+esc(x.fuente):""}</div></span></div>`).join(""):'<div class="vacio">El agente revisa cada 6 horas.</div>');
+  h+=tarjeta("Competidores",e.competidores.length?e.competidores.map(c=>`<div class="fila"><span class="nombre">${esc(c.nombre)}<div class="det">${esc(c.descripcion||"")}${c.web?" · "+esc(c.web):""}</div></span>
+    <span class="pill ${c.estado==="seguido"?"acento":""}">${c.estado==="seguido"?"siguiendo":"propuesto"}</span></div>`).join(""):'<div class="vacio">Ninguno todavía. En Telegram: «busca competidores».</div>');
+  $("#v-empresa").innerHTML=h;
+}
+function pintarEquipo(){
+  const q=D.equipo;if(!q){$("#v-equipo").innerHTML=tarjeta("Equipo",'<div class="vacio">Sin datos.</div>');return;}
+  const ic={"lista":"✅","falló":"⚠️","en cola":"⏳","planificando":"🧑‍💼","trabajando":"⚙️","revisando":"🔍"};
+  let h=tarjeta("Equipo de agentes",'<div class="det">Encárguele trabajos por Telegram: «equipo: haz una propuesta para…». Lo importante espera su ✅.</div>');
+  h+=q.tareas.length?q.tareas.map(t=>tarjeta((ic[t.estado]||"•")+" #"+t.id,`<div>${esc(t.pedido)}</div><div class="det">${esc(t.fecha)}${t.tipo?" · "+esc(t.tipo):""}</div>`+
+    (t.bitacora.length?`<details><summary>Cómo trabajó el equipo</summary>${t.bitacora.map(b=>`<div class="det">${esc(b.hora)} ${esc(b.agente)}: ${esc(b.texto)}</div>`).join("")}</details>`:"")+
+    (t.resultado?`<details><summary>Ver resultado</summary><div class="borrador">${esc(t.resultado)}</div></details>`:""),esc(t.estado))).join(""):tarjeta("Trabajos",'<div class="vacio">Todavía no hay trabajos.</div>');
+  if(q.programadas.length)h+=tarjeta("Programados",q.programadas.map(p=>`<div class="fila"><span class="nombre">${esc(p.pedido)}<div class="det">${p.dia==="todos"?"cada día":"cada "+esc(p.dia)} · ${esc(p.hora)}</div></span><span class="pill">#${p.id}</span></div>`).join(""));
+  if(q.fallos)h+=tarjeta("Mejora continua",`<div>${q.fallos} respuesta(s) salieron mal esta semana. En Telegram: «fallos de la semana».</div>`);
+  $("#v-equipo").innerHTML=h;
+}
+
+/* ---------------- CEREBRO ---------------- */
+const ICO_NOTA={idea:"💡",plan:"🗺️",meta:"🎯",decision:"✅",aprendizaje:"📘",costumbre:"🔁",nota:"📝"};
+const NOM_TIPO={idea:"Ideas",plan:"Planes",meta:"Metas",decision:"Decisiones",aprendizaje:"Aprendizajes",costumbre:"Costumbres",nota:"Notas"};
+const NOM_AREA={negocio:"Negocio",estudios:"Estudios",trabajo:"Trabajo",dinero:"Dinero",salud:"Salud",personal:"Personal"};
+const FN={q:"",tipo:"",area:""};let NOTAS=null,tBusca=null;
+async function cargarNotas(){
+  const u="api/notas?q="+encodeURIComponent(FN.q)+"&tipo="+FN.tipo+"&area="+FN.area;
+  try{const r=await fetch(u,{cache:"no-store"});if(!r.ok)throw new Error("HTTP "+r.status);NOTAS=await r.json();}
+  catch(e){NOTAS={notas:[],por_tipo:{},por_area:{},total:0,error:true};}
+  pintarCerebro();
+}
+function buscarNotas(v){FN.q=v;clearTimeout(tBusca);tBusca=setTimeout(cargarNotas,350);}
+function filtroNota(k,v){FN[k]=FN[k]===v?"":v;cargarNotas();}
+function pintarCerebro(){
+  const N=NOTAS,v=$("#v-cerebro");
+  if(!N){v.innerHTML=tarjeta("Segundo cerebro",'<div class="vacio">Cargando…</div>');return;}
+  const chip=(k,x,txt,c)=>`<button class="pill filtro ${FN[k]===x?"si":""}" onclick="filtroNota('${k}','${x}')">${txt} ${c}</button>`;
+  const chips=`<div class="chips">`+Object.keys(NOM_TIPO).filter(t=>N.por_tipo[t]).map(t=>chip("tipo",t,ICO_NOTA[t]+" "+NOM_TIPO[t],N.por_tipo[t])).join("")+`</div>`+
+    `<div class="chips" style="margin-top:6px">`+Object.keys(NOM_AREA).filter(a=>N.por_area[a]).map(a=>chip("area",a,NOM_AREA[a],N.por_area[a])).join("")+`</div>`;
+  const filtro=FN.q||FN.tipo||FN.area;
+  const filas=N.notas.map(n=>`<div class="fila"><span class="ico">${ICO_NOTA[n.tipo]||"📝"}</span><span class="nombre"><div class="nota-txt">${esc(n.texto)}</div>
+    <div class="det">#${n.id} · ${esc(n.fecha)} · ${esc(NOM_AREA[n.area]||n.area)}${n.etiquetas?" · "+esc(n.etiquetas):""}${n.origen==="claude"?" · anotada por Claude":n.origen==="auto"?" · automática":n.origen==="voz"?" · por voz":""}</div></span></div>`).join("");
+  const vacio=N.error?"No pude leer las notas.":filtro?"Nada con ese filtro.":
+    "Todavía no hay notas. Cuénteme una idea, un plan o una decisión (con Claude o en Telegram con «idea: …») y aparecerá aquí.";
+  const lista=tarjeta(filtro?"Resultados":"Últimas notas",filas||`<div class="vacio">${vacio}</div>`,N.notas.length||"");
+  if(!$("#cb-busca")){
+    v.innerHTML=`<div class="tarjeta"><h2>Segundo cerebro<span class="extra" id="cb-total"></span></h2>`+
+      `<input id="cb-busca" class="buscador" type="search" placeholder="Buscar en mis notas…" oninput="buscarNotas(this.value)">`+
+      `<div id="cb-chips"></div></div><div id="cb-lista"></div>`;
+  }
+  $("#cb-total").textContent=N.total||"";$("#cb-chips").innerHTML=chips;$("#cb-lista").innerHTML=lista;
+}
+
+/* ---------------- MÁS ---------------- */
+function pintarMas(){
+  let h="";
+  if(D.tareas||D.recordatorios)h+=tarjeta("Deberes (14 días)",((D.tareas||[]).map(filaDeber).join("")+(D.recordatorios||[]).map(filaRecordatorio).join(""))||'<div class="vacio">Sin pendientes.</div>');
+  h+=pintarMoodle();
+  if(D.negocio){const n=D.negocio;
+    h+=tarjeta("Segundo cerebro",(n.metas.length?"<div class='det'>🎯 Metas</div>"+n.metas.map(x=>`<div class="fila"><span class="nombre">${esc(x.texto)}</span></div>`).join(""):"")+
+      (n.ideas.length?"<div class='det' style='margin-top:8px'>💡 Ideas recientes</div>"+n.ideas.map(x=>`<div class="fila"><span class="nombre">${esc(x.texto)}</span><span class="pill">#${x.id}</span></div>`).join(""):"")+
+      (n.decisiones.length?"<div class='det' style='margin-top:8px'>✅ Decisiones</div>"+n.decisiones.map(x=>`<div class="fila"><span class="nombre">${esc(x.texto)}</span></div>`).join(""):"")+
+      (!n.total?'<div class="vacio">Guarde ideas por Telegram: «idea: …»</div>':""),n.total+" notas");}
+  if(D.ingles)h+=tarjeta("Inglés",`<div class="rejilla tres"><div class="dato"><div class="et">Hoy</div><div class="medio">${D.ingles.para_hoy}</div></div>
+    <div class="dato"><div class="et">Aprendidas</div><div class="medio">${D.ingles.aprendidas}</div></div><div class="dato"><div class="et">Repasos (7 d)</div><div class="medio">${D.ingles.repasos_semana}</div></div></div>`);
+  const s=D.sistema;
+  if(s)h+=tarjeta("Estado del asistente",s.calculando?'<div class="vacio">Revisando… vuelva en un minuto.</div>':
+    s.piezas.map(p=>`<div class="fila"><span>${p.estado}</span><span class="nombre">${esc(p.nombre)}${p.estado!=="✅"?`<div class="det">${esc(p.detalle)}</div>`:""}</span></div>`).join(""),s.hora?"revisado "+esc(s.hora):"");
+  h+=tarjeta("Ajustes",`<div class="fila"><span class="ico">📲</span><a class="nombre" href="atajo">Atajo de salud del iPhone<div class="det">sueño, pasos, pulso y oxígeno</div></a></div>`);
+  $("#v-mas").innerHTML=h;
+}
+document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>{
+  document.querySelectorAll("nav button").forEach(x=>x.classList.toggle("activo",x===b));
+  ["hoy","sueno","dinero","empresa","equipo","cerebro","mas"].forEach(v=>$("#v-"+v).classList.toggle("oculto",v!==b.dataset.v));window.scrollTo(0,0);
+  if(b.dataset.v==="cerebro")cargarNotas();});
+document.addEventListener("visibilitychange",()=>{if(!document.hidden)cargar()});
+cargar();setInterval(cargar,120000);
+</script>
+</body>
+</html>

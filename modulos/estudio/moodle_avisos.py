@@ -252,6 +252,60 @@ def entregas_hechas():
     return hechas
 
 
+# ------------------------------------------------------------------ borradores sin enviar ---
+HORAS_BORRADOR = 24          # avisa una sola vez si un borrador sigue sin enviar y el cierre está a menos de esto
+
+
+def _fecha_local(iso):
+    f = datetime.fromisoformat(iso)
+    return f if f.tzinfo else f.replace(tzinfo=ZONA)
+
+
+def borradores_por_cerrar():
+    """Deberes con BORRADOR en Moodle (subió algo pero no pulsó «Enviar») cuyo último momento para entregar (cierre,
+    o la entrega si no hay cierre) cae en las próximas HORAS_BORRADOR horas. Cada uno se avisa una sola vez."""
+    with closing(_con()) as con:
+        borradores = {f["tarea_id"] for f in con.execute("SELECT tarea_id FROM moodle_entregas WHERE estado = 'draft'")}
+    if not borradores:
+        return []
+    with closing(moodle._con()) as con:
+        filas = [dict(f) for f in con.execute("SELECT * FROM moodle_eventos WHERE tipo IN ('deber', 'cierre')")]
+    cierres = {}
+    for f in filas:
+        if f["tipo"] == "cierre":
+            clave = (moodle._clave(f["titulo"]), f.get("curso", ""))
+            cierres[clave] = max(cierres.get(clave, f["vence"]), f["vence"])
+    ahora_ = ahora()
+    salida, vistos = [], set()
+    for f in filas:
+        tid = f["tarea_id"]
+        if f["tipo"] != "deber" or tid not in borradores or tid in vistos:
+            continue
+        t = tareas.obtener(tid)
+        if not t or t["estado"] != "pendiente":
+            continue
+        limite = _fecha_local(max(f["vence"], cierres.get((moodle._clave(f["titulo"]), f.get("curso", "")), f["vence"])))
+        horas = (limite - ahora_).total_seconds() / 3600
+        clave = str(tid) + "|" + limite.isoformat(timespec="minutes")
+        if 0 < horas <= HORAS_BORRADOR and not visto("borrador", clave):
+            marcar("borrador", clave)
+            vistos.add(tid)
+            salida.append({"tarea": t, "limite": limite, "horas": horas})
+    return salida
+
+
+def _textos_borradores(lista):
+    textos = []
+    for b in lista:
+        t, limite = b["tarea"], b["limite"]
+        dia = "hoy" if limite.date() == ahora().date() else "mañana"
+        textos.append("\U0001F4DD <b>Borrador sin enviar</b>: " + escape(t["titulo"])
+                      + (" (" + escape(t["materia"]) + ")" if t["materia"] != "General" else "")
+                      + "\nCierra " + dia + " a las " + limite.strftime("%H:%M")
+                      + ". En Moodle falta pulsar <b>«Enviar tarea»</b>; si no, el profesor no lo recibe.")
+    return textos
+
+
 # ------------------------------------------------------------------ todo junto ---
 def revisar():
     """Devuelve la lista de mensajes HTML para Telegram."""
@@ -260,6 +314,11 @@ def revisar():
     primera = not db.aviso_enviado("moodle|avisos_inicial")
     notis, avisos = notificaciones_nuevas(), avisos_nuevos()
     hechas = entregas_hechas()
+    try:
+        borradores = _textos_borradores(borradores_por_cerrar())
+    except Exception as exc:
+        log.info("No pude revisar borradores: %s", exc)
+        borradores = []
     mensajes = []
     if primera:
         db.marcar_aviso("moodle|avisos_inicial")
@@ -275,7 +334,7 @@ def revisar():
             for a in avisos[-3:]:
                 texto += ("\n• <b>" + escape(a["materia"]) + "</b>: " + escape(a["titulo"])
                           + " <i>(" + _fecha(a["cuando"]) + ")</i>")
-        return [texto] + _textos_hechas(hechas)
+        return [texto] + _textos_hechas(hechas) + borradores
     for n in notis:
         texto = "\U0001F514 <b>Moodle</b>: " + escape(_limpio(n.get("subject", ""), 200))
         cuerpo = _limpio(n.get("smallmessage") or n.get("fullmessage", ""), 300)
@@ -289,7 +348,7 @@ def revisar():
                  + (" – " + escape(a["autor"]) if a["autor"] else "") + "\n" + escape(a["texto"])
                  + '\n<a href="' + escape(a["enlace"]) + '">Leer completo</a>')
         mensajes.append(texto)
-    return mensajes + _textos_hechas(hechas)
+    return mensajes + _textos_hechas(hechas) + borradores
 
 
 def _textos_hechas(hechas):

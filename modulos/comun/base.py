@@ -34,6 +34,54 @@ def ruta(clave, defecto):
     return p if p.is_absolute() else RAIZ / p
 
 
+def _ca_windows():
+    """yfinance usa curl_cffi, que NO ve los certificados de Windows (truststore solo arregla requests/ssl). Con Avast
+    revisando el HTTPS, Yahoo falla con «unable to get local issuer certificate». Se arma un archivo con los
+    certificados de Windows + certifi y curl_cffi lo usa por defecto. Se rehace una vez al día."""
+    import ssl
+    import time
+    if not hasattr(ssl, "enum_certificates"):              # solo Windows
+        return None
+    destino = RAIZ / "datos" / "ca_windows.pem"
+    try:
+        if destino.exists() and time.time() - destino.stat().st_mtime < 86400:
+            return str(destino)
+        pems = []
+        for tienda in ("ROOT", "CA"):
+            for cert, codificacion, _uso in ssl.enum_certificates(tienda):
+                if codificacion == "x509_asn":
+                    pems.append(ssl.DER_cert_to_PEM_cert(cert))
+        try:
+            import certifi
+            pems.append(Path(certifi.where()).read_text(encoding="utf-8"))
+        except Exception:
+            pass
+        destino.parent.mkdir(exist_ok=True)
+        tmp = destino.with_suffix(".tmp%d" % os.getpid())
+        tmp.write_text("".join(pems), encoding="utf-8")
+        os.replace(tmp, destino)
+        return str(destino)
+    except Exception:
+        return str(destino) if destino.exists() else None
+
+
+try:                       # curl_cffi (yfinance: precios, calendario de resultados) con los certificados de Windows
+    _CA = _ca_windows()
+    if _CA:
+        from curl_cffi import requests as _curl_requests
+        _sesion_original = _curl_requests.Session.__init__
+
+        def _sesion_con_ca(self, *a, **k):
+            k.setdefault("verify", _CA)
+            _sesion_original(self, *a, **k)
+
+        if not getattr(_curl_requests.Session, "_ca_windows", False):
+            _curl_requests.Session.__init__ = _sesion_con_ca
+            _curl_requests.Session._ca_windows = True
+except Exception:          # sin curl_cffi o sin certificados: todo sigue como antes
+    pass
+
+
 PESADO = ruta("pesado", "datos_pesados")              # archivos grandes y privados (respaldos, XTB, comprobantes)
 INFO_IA = ruta("informacion_ia", "mis_documentos")    # carpeta que leen la biblioteca y el aprendizaje
 
@@ -57,13 +105,24 @@ def registro(nombre):
     if not log.handlers:
         log.setLevel(logging.INFO)
         formato = logging.Formatter("%(asctime)s %(levelname)s %(message)s", "%Y-%m-%d %H:%M:%S")
-        archivo = logging.FileHandler(carpeta / (nombre + ".log"), encoding="utf-8")
-        archivo.setFormatter(formato)
+        if not _es_prueba():
+            archivo = logging.FileHandler(carpeta / (nombre + ".log"), encoding="utf-8")
+            archivo.setFormatter(formato)
+            log.addHandler(archivo)
         pantalla = logging.StreamHandler()
         pantalla.setFormatter(formato)
-        log.addHandler(archivo)
         log.addHandler(pantalla)
     return log
+
+
+def _es_prueba():
+    """21-11: las pruebas (base temporal) ya no escriben en logs/ reales. Antes la prueba del equipo dejaba
+    «El equipo falló en la tarea 9: Ollama apagado / sin red» en logs/equipo.log y parecía una falla real."""
+    try:
+        from modulos.comun import modo_prueba
+        return modo_prueba.activo()
+    except Exception:
+        return False                    # ante la duda, se escribe el registro como siempre
 
 
 def enviar_telegram(texto, botones=None):

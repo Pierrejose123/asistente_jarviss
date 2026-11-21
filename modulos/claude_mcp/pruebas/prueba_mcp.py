@@ -53,6 +53,7 @@ import requests  # noqa: E402
 requests.get = requests.post = _sin_red
 
 from modulos.claude_mcp import servidor_mcp as S  # noqa: E402
+S._log = lambda texto: None                  # la prueba no escribe en logs/mcp.log (no cuenta como error real)
 from modulos.ia import cerebro  # noqa: E402
 
 cerebro._llamar = _sin_red                     # si algo intentara usar la IA local, falla la prueba
@@ -87,7 +88,7 @@ ini = lineas[0]["result"] if lineas else {}
 ok(ini.get("protocolVersion") == "2025-06-18" and ini.get("serverInfo", {}).get("name") == "jarvis", "initialize")
 ok("jarvis_contexto" in ini.get("instructions", ""), "instrucciones para Claude")
 nombres = [t["name"] for t in lineas[1]["result"]["tools"]] if len(lineas) > 1 else []
-ok(len(nombres) == 10 and "jarvis_github" in nombres and "jarvis_pedir" in nombres and "jarvis_recordar" in nombres, "lista de herramientas: %s" % nombres)
+ok(len(nombres) == 13 and "jarvis_biblioteca" in nombres and "jarvis_nota" in nombres and "jarvis_notas" in nombres and "jarvis_github" in nombres and "jarvis_pedir" in nombres and "jarvis_recordar" in nombres, "lista de herramientas: %s" % nombres)
 ok(all(t["inputSchema"]["type"] == "object" for t in S.HERRAMIENTAS), "esquemas válidos")
 ok(len(lineas) > 2 and lineas[2] == {"jsonrpc": "2.0", "id": 3, "result": {}}, "ping")
 ok(len(lineas) > 3 and lineas[3]["error"]["code"] == -32601, "método desconocido")
@@ -118,6 +119,78 @@ ok(llamar("jarvis_olvidar", {"id": rid})[0] == "Olvidado." and not any(r["id"] =
    "olvidar")
 ok(llamar("jarvis_olvidar", {"id": 99999})[0] == "No existe ese id.", "olvidar id inexistente")
 ok(llamar("jarvis_recordar", {"dato": "  "})[0] == "Falta el dato.", "dato vacío")
+
+# ---------------------------------------------------------------- segundo cerebro desde Claude
+from modulos.segundo_cerebro import segundo_cerebro as SC  # noqa: E402
+t, e = llamar("jarvis_nota", {"texto": "Ofrecer a abogados un asistente que resuma expedientes", "tipo": "idea",
+                              "area": "negocio", "etiquetas": "abogados, expedientes"})
+ok(not e and t.startswith("Guardada") and "💡" in t, "nota: guarda una idea: %s" % t)
+nota = SC.ultimas(1)[0]
+ok(nota["origen"] == "claude" and nota["area"] == "negocio" and nota["etiquetas"] == "abogados, expedientes",
+   "nota: origen claude, área y etiquetas")
+t, _ = llamar("jarvis_nota", {"texto": "Ofrecer a abogados un asistente que resuma expedientes", "tipo": "idea"})
+ok(t.startswith("Ya estaba"), "nota: no duplica")
+t, _ = llamar("jarvis_nota", {"texto": "Cobrar 30 dólares al mes por el asistente de abogados", "tipo": "decision",
+                              "area": "negocio"})
+llamar("jarvis_nota", {"texto": "Estudiar inglés media hora antes de dormir", "tipo": "costumbre", "area": "estudios"})
+t, _ = llamar("jarvis_notas", {"consulta": "abogados"})
+ok("expedientes" in t and "30 dólares" in t and "inglés" not in t, "notas: busca por palabra: %s" % t)
+t, _ = llamar("jarvis_notas", {"area": "estudios"})
+ok("inglés" in t and "abogados" not in t, "notas: filtra por área")
+t, _ = llamar("jarvis_notas", {"tipo": "decision"})
+ok("30 dólares" in t and "expedientes" not in t, "notas: filtra por tipo")
+ok(llamar("jarvis_notas", {"consulta": "zzzz inexistente"})[0].startswith("Sin notas"), "notas: sin resultados")
+t, _ = llamar("jarvis_nota", {"texto": "Cobrar 40 dólares al mes por el asistente de abogados", "tipo": "decision",
+                              "reemplaza": nota["id"] + 1})
+ok(t.startswith("Actualizada") and "40 dólares" in SC.obtener(nota["id"] + 1)["texto"]
+   and "40 dólares" in llamar("jarvis_notas", {"consulta": "dólares"})[0], "nota: corrige una existente: %s" % t)
+ok(llamar("jarvis_nota", {"texto": "x", "tipo": "idea"})[0] == "Falta el texto.", "nota: texto vacío")
+ok(llamar("jarvis_nota", {"texto": "algo", "tipo": "idea", "reemplaza": 9999})[0].startswith("No existe"),
+   "nota: reemplaza inexistente")
+ok("jarvis_nota" in S.INSTRUCCIONES and "jarvis_notas" in S.INSTRUCCIONES, "instrucciones: explican el segundo cerebro")
+
+# ---------------------------------------------------------------- biblioteca (carpeta y base TEMPORALES)
+from modulos.biblioteca import biblioteca as BIB  # noqa: E402
+CARPETA = TMP / "biblio"
+(CARPETA / "Introduccion a la Animacion").mkdir(parents=True)
+(CARPETA / "Fotografia II").mkdir(parents=True)
+(CARPETA / "Introduccion a la Animacion" / "clase 3 principios.md").write_text(
+    "# Clase 3\nLos doce principios de la animación. El squash and stretch da peso y flexibilidad. "
+    "El timing define cuántos fotogramas dura cada acción. La anticipación prepara al público antes del movimiento "
+    "principal y el seguimiento hace que las partes sueltas sigan moviéndose después de que el cuerpo se detiene.",
+    encoding="utf-8")
+(CARPETA / "Fotografia II" / "exposicion.md").write_text(
+    "# Exposición\nEl triángulo de exposición: apertura, velocidad de obturación e ISO. "
+    "Una apertura grande deja entrar más luz y reduce la profundidad de campo. Una velocidad lenta congela menos el "
+    "movimiento y un ISO alto agrega ruido a la imagen, por eso conviene subirlo solo cuando falta luz.",
+    encoding="utf-8")
+import os  # noqa: E402
+for _f in CARPETA.rglob("*.md"):
+    os.utime(_f, (1700000000, 1700000000))           # la biblioteca ignora archivos que se están escribiendo (< 60 s)
+
+
+def _sin_ollama(*a, **k):
+    raise BIB.Pausa("PRUEBA: Ollama apagado")       # como en la PC con Ollama apagado: busca solo por palabras
+
+
+BIB.vectores = _sin_ollama
+_aj = BIB.ajustes()
+_aj.update({"carpeta": str(CARPETA), "base": str(TMP / "biblio.db"), "excluir": []})
+BIB.ajustes = lambda: dict(_aj)
+assert str(BIB.ruta_base()).startswith(str(TMP)), "la biblioteca de prueba no es temporal"
+BIB.actualizar()
+t, e = llamar("jarvis_biblioteca", {"accion": "estado"})
+ok(not e and "2 archivos" in t, "biblioteca: estado: %s" % t[:80])
+t, _ = llamar("jarvis_biblioteca", {"accion": "buscar", "consulta": "squash and stretch"})
+ok("[1] Clase 3" in t and "Animacion" in t and "peso y flexibilidad" in t and "obturación" not in t,
+   "biblioteca: busca y cita archivo: %s" % t[:120])
+t, _ = llamar("jarvis_biblioteca", {"accion": "buscar", "consulta": "apertura", "materia": "fotografía"})
+ok("Exposición" in t and "Materia: Fotografia II" in t and "squash" not in t, "biblioteca: filtra por materia: %s" % t[:120])
+ok(llamar("jarvis_biblioteca", {"accion": "buscar", "consulta": "zzzz qwerty"})[0].startswith("Nada"),
+   "biblioteca: sin resultados")
+ok(llamar("jarvis_biblioteca", {"accion": "buscar"})[0] == "Falta la consulta.", "biblioteca: sin consulta")
+t, _ = llamar("jarvis_biblioteca", {"accion": "documento", "consulta": "exposicion"})
+ok("«Exposición» (Fotografia II" in t, "biblioteca: documento por nombre: %s" % t[:80])
 
 # ---------------------------------------------------------------- pedir a Jarvis (solo módulos exactos)
 t, e = llamar("jarvis_pedir", {"texto": "recuérdame comprar pan mañana a las 5 de la tarde"})

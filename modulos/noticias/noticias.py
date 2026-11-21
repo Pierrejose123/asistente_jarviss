@@ -36,7 +36,7 @@ BD = RAIZ / "datos" / "asistente.db"
 ARCHIVO = CONFIG / "noticias.json"
 AGENTE = {"User-Agent": "Mozilla/5.0 (asistente personal; lector RSS)"}
 
-VERSION = 3
+VERSION = 5
 G_ES = "https://news.google.com/rss/search?q={q}+when:1d&hl=es-419&gl=US&ceid=US:es-419"
 G_EN = "https://news.google.com/rss/search?q={q}+when:1d&hl=en-US&gl=US&ceid=US:en"
 G_EC = "https://news.google.com/rss/search?q={q}+when:2d&hl=es-419&gl=EC&ceid=EC:es-419"
@@ -85,6 +85,14 @@ PREDETERMINADO = {
         {"nombre": "Trump (EN)", "url": _g(G_EN, "Trump Truth Social post"), "tipo": "politica", "tema": "Trump"},
         {"nombre": "Leyes del dinero", "url": _g(G_ES, "ley criptomonedas OR regulación financiera OR ley de impuestos OR stablecoins"), "tipo": "regulacion", "tema": "Leyes y dinero"},
         {"nombre": "Money laws", "url": _g(G_EN, "SEC rule OR crypto bill OR stablecoin law OR tax bill"), "tipo": "regulacion", "tema": "Leyes y dinero"},
+        # v4 (19-11): economía de EE. UU. y cripto con gobiernos, revisadas en cada vuelta en vivo
+        {"nombre": "Economía EE. UU.", "url": _g(G_EN, "\"Federal Reserve\" OR inflation OR \"jobs report\" OR GDP OR \"Treasury yields\" OR recession"), "tipo": "economia", "rapida": True},
+        {"nombre": "Economía EE. UU. (ES)", "url": _g(G_ES, "\"Reserva Federal\" OR \"inflación en Estados Unidos\" OR \"economía de Estados Unidos\" OR Wall Street"), "tipo": "economia"},
+        {"nombre": "Cripto y gobiernos", "url": _g(G_EN, "bitcoin OR crypto (SEC OR government OR regulation OR \"strategic reserve\" OR ETF OR ban OR law)"), "tipo": "cripto", "tema": "Cripto", "rapida": True},
+        # v5 (19-11): oro
+        {"nombre": "Oro", "url": _g(G_EN, "\"gold price\" OR \"gold prices\" OR bullion OR \"central bank gold\""), "tipo": "economia", "tema": "Oro", "rapida": True},
+        {"nombre": "Oro (ES)", "url": _g(G_ES, "\"precio del oro\" OR \"el oro\" onza"), "tipo": "economia", "tema": "Oro"},
+        {"nombre": "Cripto y gobiernos (ES)", "url": _g(G_ES, "bitcoin OR criptomonedas (gobierno OR regulación OR ley OR SEC OR reserva OR prohíbe)"), "tipo": "cripto", "tema": "Cripto"},
     ],
     # Secciones del resumen de la mañana: (título, tema, cuántas). El total queda en ~2 mensajes.
     "secciones": [["🇪🇨 Ecuador", "Ecuador", 2], ["🇺🇸 Trump", "Trump", 1], ["🛢 Petróleo y energía", "Energía", 1],
@@ -104,6 +112,7 @@ MACRO = {
     "Geopolítica": r"guerra|\bwar\b|ucrania|ukraine|rusia|russia|israel|ir[aá]n|\bgaza\b|china|taiw[aá]n|otan|nato|ataque|attack",
     "Energía": r"petr[oó]leo|\boil\b|brent|\bwti\b|\bopep\b|\bopec\b|gas natural|natural gas",
     "Mercados": r"wall street|s&p ?500|nasdaq|dow jones|bolsas?\b|stocks? market|mercados?\b|bonos?\b|treasur(?:y|ies)|yields?|d[oó]lar|dollar",
+    "Oro": r"\bgold (?:price|prices|futures|rall|hits|jumps|falls|slips|record)|precio del oro|\bel oro\b|bullion|onza de oro|metales preciosos|precious metals",
     "Cripto": r"bitcoin|\bbtc\b|ethereum|\beth\b|cripto|crypto|stablecoin|blockchain|binance|coinbase|solana|\bxrp\b|tether",
     "Tecnología": r"inteligencia artificial|\bia\b|\bai\b|openai|chatgpt|anthropic|gemini|semiconduct|\bchips?\b|smartphone|iphone|"
                   r"software|ciberseg|cybersec|hackeo|\bhack|startup|tecnol[oó]gic|tech\b|robot|data center|centro de datos",
@@ -320,7 +329,7 @@ def _consulta_google(nombre):
     return '"' + nombre + '"' + ("" if " " in nombre else " acciones")
 
 
-RAPIDAS = {"CNBC", "CNBC Economía", "MarketWatch", "BBC Business", "Oil", "Trump (EN)", "Money laws"}
+RAPIDAS = {"CNBC", "CNBC Economía", "MarketWatch", "BBC Business", "Oil", "Trump (EN)", "Money laws", "CoinDesk"}
 
 
 def recoger(rapido=False):
@@ -739,13 +748,28 @@ def alertas_eventos():
     with _con() as con:
         filas = con.execute("SELECT * FROM noticias WHERE evento=1 AND alertada=0 AND publicado >= ? AND tickers != ''",
                             (desde,)).fetchall()
-        mensajes = []
-        for f in filas:
+        elegidas, usadas = [], []
+        for f in sorted(filas, key=lambda f: -puntaje(f, acciones)):
             suyos = [t for t in f["tickers"].split(",") if t in acciones]
             con.execute("UPDATE noticias SET alertada=1 WHERE clave=?", (f["clave"],))
-            if suyos and len(mensajes) < 3:
-                mensajes.append("⚡ <b>" + escape(", ".join(suyos)) + "</b>: " + _linea_html(f)[2:])
-    return ["\n\n".join(mensajes)] if mensajes else []          # todo en UN mensaje
+            if suyos and len(elegidas) < 4 and not any(_parecidas(f, g) for g in usadas):
+                usadas.append(f)
+                elegidas.append((f, suyos))
+    mensajes = []
+    from modulos.noticias import mercado
+    for f, suyos in elegidas:                                    # un mensaje por noticia, con lo importante
+        extra = ""
+        for t in suyos[:2]:
+            c = _variacion_hoy(t)
+            if c is not None:
+                extra += ("" if not extra else " · ") + escape(t) + " hoy " + ("%+.1f" % c).replace(".", ",") + " %"
+        try:
+            mensajes.append(mercado.tarjeta(f, "⚡ Sus acciones · " + ", ".join(suyos), extra=extra,
+                                            contexto="El usuario tiene acciones de " + ", ".join(suyos)))
+        except Exception as exc:
+            log.info("Tarjeta de noticia falló: %s", exc)
+            mensajes.append("⚡ <b>" + escape(", ".join(suyos)) + "</b>: " + _linea_html(f)[2:])
+    return mensajes
 
 
 def alertas_movimiento():
@@ -774,8 +798,8 @@ def alertas_movimiento():
                 " se mueve " + ("%+.1f" % cambio).replace(".", ",") + " % hoy."
         texto += ("\nTitulares recientes:\n" + "\n".join(_linea_html(f) for f in titulares)) if titulares else \
                  "\nNo encontré titulares que lo expliquen todavía."
-        mensajes.append(texto)
-    return ["\n\n".join(mensajes) + "\n\nSolo informo, señor: usted decide."] if mensajes else []   # UN mensaje
+        mensajes.append(texto + "\n<i>Solo informo, señor: usted decide.</i>")
+    return mensajes                                              # un mensaje por acción
 
 
 # ------------------------------------------------------------------ contexto para la IA y frases ---
@@ -858,6 +882,9 @@ ES_EN = {  # para encontrar noticias en inglés con preguntas en español
     "inteligencia artificial": ["ai ", "artificial intelligence"], "chips": ["chip", "semiconductor"],
     "eleccion": ["election"], "fed": ["reserva federal", "federal reserve", "powell"], "bce": ["banco central europeo", "ecb", "lagarde"],
     "trump": ["trump", "casa blanca", "white house"], "despedir": ["layoff", "job cut", "despid"], "gente": ["job", "worker", "emple"], "gobierno": ["government", "administration"], "huelga": ["strike"],
+    "ciber": ["cyber", "hack", "breach", "ransomware"], "hacke": ["hack", "breach"], "ataque": ["attack", "breach"],
+    "filtrac": ["leak", "breach"], "robo de datos": ["data breach", "stolen data"], "proveedor": ["vendor", "supplier", "third party"],
+    "demanda colectiva": ["class action"], "investigac": ["probe", "investigat"],
 }
 VACIAS = {"noticia", "noticias", "sobre", "porque", "explica", "explicame", "cuentame", "quiere", "quieren", "esta",
           "este", "para", "como", "donde", "cuando", "tiene", "hacer", "puede", "podria", "dime", "saber", "paso",
@@ -1064,6 +1091,88 @@ def para_herramienta(cual):
                                                          str(cual) + "». Dilo en una frase y responde con lo que sepas.")
 
 
+# ------------------------------------------------------------------ respuestas a un mensaje citado ---
+_citado = {"texto": "", "t": 0.0}      # el mensaje de Telegram al que el usuario respondió (deslizar → responder)
+
+
+def fijar_citado(texto):
+    """El bot lo llama cuando el usuario responde a un mensaje: así sé de qué noticia habla."""
+    _citado.update(texto=(texto or "")[:3000], t=time.time())
+
+
+def _noticia_citada(pregunta):
+    """Noticia del mensaje citado (si es reciente). Si el mensaje trae varias, la que más se parece a la pregunta."""
+    if not _citado["texto"] or time.time() - _citado["t"] > 120:
+        return None
+    texto, _citado["texto"] = _citado["texto"], ""
+    lineas = [re.sub(r"^[\W\d]+", "", l).strip() for l in texto.splitlines()]
+    lineas = [l for l in lineas if len(l) >= 15 and not l.lower().startswith(("fuentes", "solo informo", "titulares"))]
+    candidatas, vistas = [], set()
+    for l in lineas[:15]:
+        f = buscar_noticia(l, minimo=3)
+        if f and f["clave"] not in vistas:
+            vistas.add(f["clave"])
+            candidatas.append(f)
+    if not candidatas:
+        return None
+    if len(candidatas) == 1:
+        return candidatas[0]
+    puntos = _puntuar(pregunta, mis_acciones())
+    return max(candidatas, key=puntos)
+
+
+DECISION = re.compile(r"\b(?:vend\w*|compr\w*|promedi\w*|aprovech\w*|mantengo|mantener|aguant\w*|holde\w*|salgo|salir|"
+                      r"entro|entrar|cae\w*|ca[ií]\w*|baj\w*|desplom\w*|rebot\w*|oportunidad|qu[eé]\s+hago)\b", re.I)
+
+REGLAS_DECISION = (
+    "El usuario pregunta qué HACER con su acción. No le des una orden ('venda'/'compre'): dale los criterios para que "
+    "decida él. Estructura (párrafos cortos, sin markdown, máximo unas 250 palabras):\n"
+    "1) Qué pasó en una frase y si está CONFIRMADO o es solo un reclamo/rumor (di quién lo confirma).\n"
+    "2) Qué tan grave es para el NEGOCIO de esa empresa (¿afecta ingresos, multas, clientes, o es un proveedor externo?) "
+    "y qué suele pasar con el precio en casos parecidos (ej. ciberataques a grandes empresas: caídas de pocos días que "
+    "se suelen recuperar salvo que haya robo masivo de datos, multas o pérdida de clientes).\n"
+    "3) Cómo está la acción HOY y su peso en la cartera (datos de abajo, calculados en código; no inventes cifras).\n"
+    "4) Escenarios con su método (José Luis Cava): mantener si la tendencia de fondo sigue sana (suelos y techos "
+    "crecientes); comprar más solo si la caída es por ruido y el precio aguanta un soporte con la tendencia intacta, "
+    "nunca 'promediar' a ciegas mientras cae; reducir si pierde soportes clave o la noticia daña el negocio. "
+    "No dejarse llevar por el miedo de la noticia.\n"
+    "5) Qué vigilar los próximos días (comunicados oficiales, si se publican datos, reacción del precio).\n"
+    "Termina con: 'La decisión es suya, señor.' Si mencionas fuentes, no las repitas: se añaden solas al final.")
+
+METODO_CAVA = ("MÉTODO DEL USUARIO (José Luis Cava, resumen): tendencia del sector primero; tendencia sana = suelos y "
+               "techos crecientes; ruptura clara de resistencias; ondas de Elliott; gestionar el riesgo y no dejarse "
+               "llevar por el miedo ni la narrativa negativa de las noticias.")
+
+
+def _contexto_decision(f, pregunta):
+    """Datos calculados en código para preguntas de comprar/vender/mantener: su cartera y el precio de hoy."""
+    partes = [METODO_CAVA]
+    acciones = mis_acciones()
+    tickers = [t for t in (f["tickers"] or "").split(",") if t] if f else []
+    bajo = _sin_tildes(pregunta + " " + (f["titulo"] if f else ""))
+    tickers += [t for t, n in acciones.items() if t not in tickers and not t.startswith("^") and
+                (re.search(r"(?<!\w)" + re.escape(_sin_tildes(n)) + r"(?!\w)", bajo) or
+                 re.search(r"(?<![\w$])" + re.escape(t.lower()) + r"(?!\w)", bajo))]
+    suyos = [t for t in tickers if t in acciones]
+    if suyos:
+        partes.append("Acciones de la noticia que el usuario TIENE: " + ", ".join(suyos) + ".")
+    for t in tickers[:4]:
+        cambio = _variacion_hoy(t)
+        if cambio is not None:
+            partes.append(t + " hoy: " + ("%+.2f" % cambio) + " %.")
+    partes.append(_portafolio_breve().strip())
+    return "\n".join(p for p in partes if p)
+
+
+def _recortar(texto, maximo=3300):
+    """Telegram corta en 4096 caracteres: dejo la respuesta completa por frases, sin pasarme."""
+    if len(texto) <= maximo:
+        return texto
+    corte = texto[:maximo]
+    punto = max(corte.rfind(". "), corte.rfind("\n"))
+    return (corte[:punto + 1] if punto > maximo * 0.6 else corte).rstrip() + " …"
+
+
 def profundizar(cual, pregunta, con_web=True):
     """Camino directo para preguntas sobre una noticia: artículo + relacionadas + internet.
     La IA responde SIN herramientas (todo lo que lee es externo)."""
@@ -1074,20 +1183,27 @@ def profundizar(cual, pregunta, con_web=True):
     f = cual if isinstance(cual, sqlite3.Row) else buscar_noticia(cual)
     log.info("Profundizo en «%s» para: %s", f["titulo"][:60], pregunta[:80])
     web, fuentes = investigar(f, pregunta) if con_web else ("", [])
+    decision = bool(DECISION.search(pregunta or ""))
+    if decision:
+        log.info("Pregunta de decisión (comprar/vender/mantener) sobre la noticia")
+        bloque = bloque.replace(" No recomiendes comprar ni vender.", "")
+    reglas = (REGLAS_RESPUESTA.replace(" No recomiendes comprar ni vender.", "") + "\n" + REGLAS_DECISION) if decision \
+        else REGLAS_RESPUESTA + " Máximo unas 300 palabras."
     sistema = ("Eres JARVIS, el asistente personal del usuario. Le hablas de usted y le dices 'señor'. Explicas noticias "
                "de economía, política y mercados a fondo pero fácil de entender, en párrafos cortos, sin markdown. "
                "Responde DIRECTO a lo que pregunta (si pregunta qué leyes, nombra las leyes o propuestas concretas que "
                "aparezcan en la información y explica cada una en una o dos frases). Usa la noticia, las relacionadas, "
-               "la investigación en internet y lo que sepas. " + REGLAS_RESPUESTA + "\n\n"
-               + bloque + ("\n\n" + web if web else ""))
+               "la investigación en internet y lo que sepas. " + reglas + "\n\n"
+               + bloque + ("\n\n" + _contexto_decision(f, pregunta) if decision else "")
+               + ("\n\n" + web if web else ""))
     mensajes = [{"role": "system", "content": sistema}] + cerebro.memoria.historial(4) + \
                [{"role": "user", "content": pregunta}]
     try:
-        respuesta = _ollama(mensajes, num_predict=1400)
+        respuesta = _ollama(mensajes, num_predict=1000)
     except Exception as exc:
         log.warning("No pude profundizar en la noticia: %s", exc)
         return "No pude analizar la noticia ahora, señor (¿Ollama ocupado?). Inténtelo en un momento."
-    respuesta = re.sub(r"[*#`]", "", respuesta).strip()
+    respuesta = _recortar(re.sub(r"[*#`]", "", respuesta).strip())
     if fuentes:
         respuesta += "\n\nFuentes:\n" + "\n".join("• " + r["titulo"][:70] + " — " + r["url"] for r in fuentes[:3])
     return respuesta
@@ -1137,7 +1253,7 @@ def responder_investigando(pregunta, previa=""):
     except Exception as exc:
         log.warning("No pude responder investigando: %s", exc)
         return None                                   # que siga el camino normal de la IA
-    respuesta = re.sub(r"[*#`]", "", respuesta).strip()
+    respuesta = _recortar(re.sub(r"[*#`]", "", respuesta).strip())
     if fuentes:
         respuesta += "\n\nFuentes:\n" + "\n".join("• " + r["titulo"][:70] + " — " + r["url"] for r in fuentes[:3])
     return respuesta
@@ -1322,7 +1438,11 @@ def _procesar(texto):
     m = PIDE_NOTICIAS.match(texto or "")
     if m:
         return texto_consulta(m.group(1) or "")
-    informativa = es_informativa(texto)
+    f = _noticia_citada(texto)                 # respondió (deslizar → responder) a un mensaje con la noticia
+    if f:
+        log.info("Pregunta sobre la noticia citada: %s", f["titulo"][:80])
+        return profundizar(f, texto)
+    informativa = es_informativa(texto) or bool(DECISION.search(texto or "") and TEMA.search(texto or ""))
     if informativa or PREGUNTA_NOTICIA.search(texto or ""):   # ¿habla de una noticia guardada?
         f = buscar_noticia(texto, minimo=3)
         if f:

@@ -9,6 +9,7 @@
   (/credito — /tarjetas es de la biblioteca —, aviso 3 días antes y el día, 09:00) y «¿me alcanza comprar X de 900 a 6 meses?».
 """
 import asyncio
+import re
 import tempfile
 from datetime import date, time as hora
 from pathlib import Path
@@ -292,6 +293,26 @@ async def cmd_borrargasto(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(texto, reply_markup=teclado)
 
 
+async def cmd_pendientes(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Vuelve a mandar los movimientos del banco que esperan respuesta, con sus botones."""
+    lista = await asyncio.to_thread(cuentas.pendientes)
+    if not lista:
+        await update.message.reply_text("✅ No hay movimientos del banco esperando respuesta.")
+        return
+    for c in lista:
+        texto, filas = cuentas.texto_evento(("preguntar", c["id"]))
+        await update.message.reply_text(texto, reply_markup=_teclado_crudo(filas) if filas else None)
+
+
+async def cmd_borrados(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    lista = await asyncio.to_thread(gastos.borrados)
+    if not lista:
+        await update.message.reply_text("No hay movimientos borrados en los últimos 45 días.")
+        return
+    filas = [[Boton("↩️ " + gastos.linea(g)[:60], callback_data="gas:rec:" + str(g["id"]))] for g in lista]
+    await update.message.reply_text("Movimientos borrados. Toque uno para recuperarlo:", reply_markup=Teclado(filas))
+
+
 def _botones_gasto(mid):
     return Teclado([[Boton("🏷 Cambiar categoría", callback_data="gas:cat:" + str(mid)),
                      Boton("↩️ Deshacer", callback_data="gas:del:" + str(mid))]])
@@ -331,7 +352,17 @@ async def texto_gasto(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 teclado = Teclado([[Boton("✅ Aplicar estos presupuestos", callback_data="pre:aplicar:0")]])
         await update.message.reply_text(respuesta, reply_markup=teclado)
         raise ApplicationHandlerStop
+    if re.match(r"^\W*(?:/pendientes|movimientos? (?:pendientes|sin responder|por responder)|qu[eé] movimientos? (?:faltan|tengo pendientes?))\W*$",
+                texto, re.I):
+        await cmd_pendientes(update, context)
+        raise ApplicationHandlerStop
     d = gastos.interpretar(texto)
+    if d and d["accion"] in ("recuperar", "borrados"):
+        if d["accion"] == "borrados":
+            await cmd_borrados(update, context)
+        else:
+            await update.message.reply_text(await asyncio.to_thread(gastos.ejecutar, d))
+        raise ApplicationHandlerStop
     if d and d["accion"] == "borrar_desc":
         lista = await asyncio.to_thread(gastos.buscar, d["texto"], "ingreso" if d.get("tipo") == "ingreso" else "gasto")
         if not lista:
@@ -376,6 +407,14 @@ async def boton_gasto(update: Update, context: ContextTypes.DEFAULT_TYPE):
         gastos.descartar_pendiente(mid)
         await q.edit_message_text("Entendido, no lo anoté.")
         return
+    if accion == "rec":
+        g = await asyncio.to_thread(gastos.recuperar, mid)
+        if not g:
+            await q.edit_message_text("Ese movimiento ya estaba contado.")
+            return
+        await q.edit_message_text("↩️ Recuperado y contado otra vez: " + gastos.linea(g) + " (" + g["categoria"] + ").",
+                                  reply_markup=_botones_gasto(mid))
+        return
     g = gastos.obtener(mid)
     if not g or g["estado"] != "activo":
         await q.edit_message_reply_markup(None)
@@ -400,7 +439,8 @@ async def boton_gasto(update: Update, context: ContextTypes.DEFAULT_TYPE):
                                   + "» irá a " + cat + " de ahora en adelante.")
     elif accion == "del":
         gastos.cambiar(mid, estado="borrado")
-        await q.edit_message_text("🗑 Borrado: " + gastos.linea(g) + ".")
+        await q.edit_message_text("🗑 Borrado: " + gastos.linea(g) + ".",
+                                  reply_markup=Teclado([[Boton("↩️ Recuperar", callback_data="gas:rec:" + str(mid))]]))
 
 
 async def cmd_gastos(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -612,6 +652,8 @@ def registrar(app):
     app.add_handler(CallbackQueryHandler(boton_presupuesto, pattern=r"^pre:"))
     app.add_handler(CommandHandler("movimientos", cmd_movimientos, filters=solo))
     app.add_handler(CommandHandler("borrargasto", cmd_borrargasto, filters=solo))
+    app.add_handler(CommandHandler("borrados", cmd_borrados, filters=solo))
+    app.add_handler(CommandHandler("pendientes", cmd_pendientes, filters=solo))
     app.add_handler(CallbackQueryHandler(boton_gasto, pattern=r"^gas:"))
     app.add_handler(MessageHandler(solo & filters.TEXT & ~filters.COMMAND, texto_gasto), group=-2)
     app.add_handler(MessageHandler(solo & (filters.PHOTO | filters.Document.IMAGE), foto))

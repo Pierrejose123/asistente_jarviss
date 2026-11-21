@@ -486,7 +486,34 @@ CONFIRMACIONES = {"si", "s\u00ed", "ok", "okay", "listo", "vale", "perfecto", "g
 
 
 async def texto_libre(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    citado = update.message.reply_to_message
+    if citado and (citado.text or citado.caption):         # respondió a un mensaje (p. ej. una noticia)
+        try:
+            from modulos.noticias import noticias as _noticias
+            _noticias.fijar_citado(citado.text or citado.caption)
+        except Exception as exc:
+            log.info("No pude guardar el mensaje citado: %s", exc)
     await atender_texto(update, context, update.message.text.strip())
+
+
+def _partes(texto, maximo=3900):
+    """Telegram no acepta mensajes de más de 4096 caracteres: los parto por párrafos."""
+    trozos = []
+    for parrafo in (texto or "").split("\n"):
+        while len(parrafo) > maximo:                       # párrafo gigante: lo corto a la fuerza
+            trozos.append(parrafo[:maximo])
+            parrafo = parrafo[maximo:]
+        trozos.append(parrafo)
+    partes, actual = [], ""
+    for t in trozos:
+        if actual and len(actual) + len(t) + 1 > maximo:
+            partes.append(actual)
+            actual = t
+        else:
+            actual = (actual + "\n" + t) if actual else t
+    if actual:
+        partes.append(actual)
+    return partes or ["…"]
 
 
 async def atender_texto(update: Update, context: ContextTypes.DEFAULT_TYPE, texto):
@@ -510,7 +537,8 @@ async def atender_texto(update: Update, context: ContextTypes.DEFAULT_TYPE, text
         log.warning("Error de la IA: %s", exc)
         await update.message.reply_text("Disculpe, se\u00f1or, tuve un problema pensando la respuesta. Intente de nuevo.")
         return None
-    await update.message.reply_text(respuesta)
+    for parte in _partes(respuesta):
+        await update.message.reply_text(parte, disable_web_page_preview=True)
     avisos.programar_dia(context.job_queue, USER_ID)       # por si se agendo algo para hoy
     for accion, tid in pendientes:
         if accion == "borrar_evento":

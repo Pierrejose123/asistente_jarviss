@@ -8,20 +8,38 @@ copiarlo y adaptarlo a su vida.
 
 > Proyecto personal, sin garantía. No es asesoría financiera: lo que dice de bolsa es información, no recomendación.
 
-## Qué hace
+## Qué obtiene al descargarlo
+
+Un asistente que le habla por Telegram (y por voz) y se encarga de:
+
+- **Organizar su día:** agenda, deberes, recordatorios, clases y un resumen cada mañana y cada noche.
+- **Llevar sus cuentas solo:** lee los correos de su banco y anota gastos, transferencias, tarjetas y diferidos.
+- **Vigilar sus inversiones y el mercado:** portafolio de XTB, noticias de economía, oro y cripto, con avisos solo cuando importa.
+- **Recordar lo que usted piensa:** un «segundo cerebro» para ideas, planes y decisiones, que busca por significado.
+- **Ver su vida en el teléfono:** un panel con hábitos, sueño (de su banda o reloj vía Apple Health) y dinero.
+- **Ayudarle a emprender:** un agente que investiga su mercado y un equipo de agentes que redacta propuestas y posts.
+- **Trabajar con Claude (opcional):** Claude puede consultar y usar todo esto sin que sus datos salgan de su PC.
+
+## Qué hace (detalle)
 
 | Área | Funciones |
 |---|---|
 | **Agenda** | Plan del día y la semana, tareas y deberes con fecha, recordatorios en lenguaje natural («recuérdame mañana a las 8…»), sincronización con **Google Calendar**, avisos de clases (abre Teams), bloques de estudio propuestos en los huecos libres |
-| **Estudio** | Deberes y avisos de **Moodle**, descarga de materiales, tarjetas de repaso, vocabulario de inglés con repaso espaciado y práctica de conversación |
-| **Dinero** | Gastos e ingresos escritos o leídos de correos del banco (**Gmail**, solo lectura), presupuesto, ahorros, deudas («Juan me debe 50»), perfil de gasto mes a mes |
+| **Estudio** | Deberes, entregas y avisos de **Moodle**, descarga de materiales, tarjetas de repaso, vocabulario de inglés con repaso espaciado y práctica de conversación |
+| **Dinero** | Gastos e ingresos escritos o leídos de correos del banco (**Gmail**, solo lectura), presupuesto, ahorros, deudas («Juan me debe 50»), perfil de gasto mes a mes; recuperar gastos borrados por error (`/borrados`) |
+| **Cuentas del banco** | Transferencias enviadas y recibidas, pagos de servicios y de tarjeta leídos de los correos, saldo estimado de cada cuenta; los movimientos dudosos se preguntan con botones (gasto, préstamo, entre mis cuentas…), aprende por persona y quedan en `/pendientes` y en el panel |
+| **Tarjetas de crédito** | Fechas máximas de pago, total y mínimo desde el estado de cuenta, diferidos con su cuota del mes, aviso si las cuotas pasan del 30 % del sueldo y «¿me alcanza comprar X de 900 a 6 meses?» |
 | **Bolsa** | Portafolio desde el informe de **XTB** (en porcentajes, sin montos por Telegram), «compré / vendí» por chat, alertas de precio, calendario de resultados y dividendos, diario de decisiones, notas del analista que siga |
-| **Noticias** | Resumen de la mañana por secciones (mundo, su país, petróleo, tecnología, cripto, leyes, sus acciones), cruce con los análisis de XTB Latam, «cuéntame más de la 3» |
-| **Mercado en vivo** | Caídas de índices con su historia (distancia al máximo, correcciones anteriores), resultados de sus empresas contra lo esperado, decisiones y discursos de la Fed, datos de EE. UU. (FRED), cadencia de 2 a 30 min, modos «más/menos noticias» y «silencio hasta mañana» |
+| **Noticias** | Resumen de la mañana por secciones (mundo, su país, economía, petróleo, tecnología, cripto, leyes, sus acciones), cruce con los análisis de XTB Latam, «cuéntame más de la 3» |
+| **Mercado en vivo** | Prioriza la **economía de EE. UU.** (Fed, inflación, empleo, aranceles, datos de FRED). Caídas de índices con su historia, resultados de sus empresas contra lo esperado. **Oro**: avisos al moverse ±1,5 %, al romper máximos o mínimos de 52 semanas y en récords. **Bitcoin y Ethereum**: avisos al moverse ±3 % (24/7) y noticias de cripto con gobiernos y reguladores. Cada noticia en su propio mensaje con «📌 lo importante» y «💡 por qué importa». Responda a una noticia y pregunte «¿vendo?»: le da criterios (si está confirmada, gravedad, peso en su cartera, qué vigilar), nunca órdenes. Junta los avisos para no llenarle de mensajes; modos «más/menos noticias» y «silencio hasta mañana» |
+| **Segundo cerebro** | «idea: …», «plan: …», «decidí …», «aprendí que …» por chat o voz; lo ordena solo, lo busca por palabras y por significado («¿qué había pensado sobre los precios?»), lo usa como contexto y cada domingo propone lo que aprendió de usted |
+| **Panel «Mi vida»** | Página para el teléfono y la PC (privada, por Tailscale y con clave): hábitos con rachas, sueño, pasos, pulso y VFC de su banda o reloj (atajo del iPhone vía Apple Health), dinero, movimientos por responder, deberes y notas |
+| **Empresa (emprender)** | Agente que cada 6 h busca noticias de IA, herramientas nuevas y lo que publican sus competidores; propone competidores nuevos; informe semanal con oportunidades, acciones y borradores para Instagram y TikTok; «hazme un post sobre X» |
+| **Equipo de agentes** | Un «CEO» reparte el trabajo entre investigador, analista, redactor, organizador y revisor: propuestas comerciales, posts, informes y planes en un archivo; trabajos programados («cada lunes que el equipo…») y aprende de «no era eso» |
 | **Biblioteca** | Aprende de sus PDF, Word, PowerPoint y transcripciones, y responde con esa información |
 | **Voz** | «Hey Jarvis» con Whisper (en la tarjeta gráfica si tiene NVIDIA) y voz de Edge, notas de voz por Telegram |
-| **Claude (opcional)** | Servidor MCP local: desde Claude Desktop (o el teléfono vinculado a la PC) Claude consulta su día, le pide cosas a Jarvis, guarda lo que aprende de usted en la memoria local, revisa registros, corre pruebas y reinicia el bot |
-| **PC** | `/reiniciar` y `/pruebas` desde Telegram, chequeo diario del asistente, revisión semanal de la PC (antivirus, Windows Update, discos, tarjeta gráfica, programas nuevos que arrancan solos), respaldo diario, «modo juego» que libera la tarjeta gráfica |
+| **Claude (opcional)** | Servidor MCP local: desde Claude Desktop (o el teléfono vinculado a la PC) Claude consulta su día, le pide cosas a Jarvis, guarda lo que aprende de usted en la memoria local y en el segundo cerebro, revisa registros, corre pruebas, reinicia el bot y sube la copia pública a GitHub |
+| **PC** | `/reiniciar` y `/pruebas` desde Telegram, chequeo diario del asistente, revisión semanal de la PC (antivirus, Windows Update, discos, tarjeta gráfica, programas nuevos que arrancan solos), respaldo diario, vigila Ollama y lo vuelve a abrir si se cierra, «modo juego» que libera la tarjeta gráfica |
 
 **Qué no hace:** no compra ni vende acciones, no paga nada, no envía correos en su nombre, no borra sus archivos y
 no manda montos de su dinero a Google ni a Telegram. La IA solo redacta: los cálculos (saldos, porcentajes,
@@ -84,6 +102,8 @@ Para que arranque solo con Windows, cree una tarea programada que ejecute
 | `habitos.json` | Un hábito diario con nombre, días y hora |
 | `ia.json`, `modos.json`, `voz.json` | Modelo de IA, programas de «modo juego/diseño», micrófono y voz |
 | `memoria_inicial.json` | Datos suyos que la IA debe saber desde el primer día |
+| `bancos.json` | Remitentes y asuntos de los correos de su banco (estados de cuenta de tarjetas, transferencias) |
+| `vida.json`, `empresa.json`, `equipo.json` | Hábitos y hora de dormir del panel, su negocio y búsquedas del agente de empresa, carpeta del equipo de agentes. Se crean solos la primera vez con valores por defecto |
 
 ## Google (Calendar y Gmail, opcional)
 
@@ -92,6 +112,12 @@ Para que arranque solo con Windows, cree una tarea programada que ejecute
 3. Credenciales → «ID de cliente OAuth» → «App de escritorio». Descargue el JSON como
    `credenciales\client_secret.json`.
 4. Ejecute `modulos\calendario\conectar.py` (Calendar) y `modulos\finanzas\conectar_gmail.py` (Gmail, solo lectura).
+
+## Panel «Mi vida» en el teléfono (opcional)
+
+Instale **Tailscale** en la PC y en el teléfono (gratis). En Telegram escriba `/panel`: le da el enlace con su clave.
+El panel nunca se abre a la red de su casa ni a internet. Para los datos de su banda o reloj, abra la dirección del
+panel terminada en `/atajo`: explica cómo crear el atajo del iPhone que manda sueño, pasos y pulso desde Apple Health.
 
 ## Moodle (opcional)
 
@@ -140,7 +166,9 @@ modulos/
   cava/       notas de análisis           biblioteca/ y aprendizaje/ (sus documentos)
   proactivo/  planificador                resumen/    resumen de la mañana y la noche
   voz/        «Hey Jarvis»                comun/      base, salud, PC, respaldo, modos
-  claude_mcp/ servidor MCP para Claude
+  claude_mcp/ servidor MCP para Claude    segundo_cerebro/ ideas, planes y decisiones
+  vida/       panel «Mi vida» y sueño     empresa/    agente que investiga su mercado
+  equipo/     equipo de agentes (CEO)
 config/       configuración (*.ejemplo.json)
 ```
 

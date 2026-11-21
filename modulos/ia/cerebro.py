@@ -918,11 +918,13 @@ def responder(texto, historial=None, ver_dia=None, canal="telegram", sin_ia=Fals
             directo = habitos_vida.procesar(texto, canal) or sueno.procesar(texto)
         except Exception as exc:
             log.warning("Hábitos o sueño fallo: %s", exc)
-    if not directo and not claude:
+    if not directo:
         try:                                  # empresa de IA: «qué hay de nuevo en IA», «hazme un post sobre…», competidores
             from modulos.empresa import empresa
             r_emp = empresa.procesar(texto)
-            if isinstance(r_emp, dict):
+            if isinstance(r_emp, dict) and claude:
+                pass                          # Claude por MCP: solo lo exacto (competidores, plan); lo que usa la IA local no
+            elif isinstance(r_emp, dict):
                 from modulos.empresa import telegram_empresa
                 directo = telegram_empresa.lanzar(r_emp)
             elif r_emp:

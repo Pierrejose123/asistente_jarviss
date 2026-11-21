@@ -5,6 +5,7 @@
 - GET  /?t=CLAVE        → el panel (guarda la clave en una cookie; después basta con abrir la dirección).
 - GET  /api/datos       → todo lo que muestra el panel (JSON).
 - POST /api/habito      → marcar un hábito desde el panel {"habito": "lectura", "accion": "si|no|mas|menos|borrar"}.
+- POST /api/cuenta      → responder un movimiento del banco pendiente {"id": 50, "accion": "cat|ingreso|...", "extra": ""}.
 - POST /api/salud?t=CLAVE → lo que manda el atajo del iPhone (datos de la banda vía Apple Health).
 - GET  /atajo           → instrucciones del atajo con su dirección y clave ya puestas.
 El enlace lo da /panel en Telegram.
@@ -299,7 +300,44 @@ def _cuentas():
         s, det = cuentas.saldo(c)
         if s is not None:
             lista.append({"nombre": c, "saldo": s, "desde": det["desde"][:10]})
-    return {"lista": lista, "pendientes": len(cuentas.pendientes())} if lista or cuentas.pendientes() else None
+    pend = _pendientes_cuentas()
+    return {"lista": lista, "pendientes": len(pend), "lista_pend": pend} if lista or pend else None
+
+
+ACCIONES_CUENTA = {"gasto", "cat", "prestamo", "deuda", "reembolso", "ingreso", "sueldo", "interna", "no_contar"}
+
+
+def _pendientes_cuentas():
+    """Movimientos del banco que esperan respuesta, con los mismos botones que Telegram (para el panel)."""
+    from modulos.finanzas import cuentas, gastos
+    salida = []
+    for c in cuentas.pendientes():
+        texto, filas = cuentas.texto_evento(("preguntar", c["id"]))
+        botones = []
+        for fila in filas or []:
+            for b in fila:
+                partes = b["callback_data"].split(":")
+                if len(partes) >= 3 and partes[1] in ACCIONES_CUENTA:
+                    botones.append({"t": b["text"], "a": partes[1], "x": partes[3] if len(partes) > 3 else ""})
+        salida.append({"id": c["id"], "texto": texto.split("\n🏦")[0], "botones": botones})
+    if salida:
+        salida[0]["categorias"] = gastos.categorias()
+    return salida
+
+
+def accion_cuenta(cid, accion, extra=""):
+    """Responde desde el panel un movimiento del banco (igual que los botones de Telegram)."""
+    from modulos.finanzas import cuentas, gastos
+    if accion not in ACCIONES_CUENTA or accion == "gasto":
+        return None
+    if accion == "cat":
+        cats = gastos.categorias()
+        if not str(extra).isdigit() or int(extra) >= len(cats):
+            return None
+        return cuentas.aplicar(cid, "gasto", cats[int(extra)])
+    if accion in ("deuda", "reembolso"):
+        return cuentas.aplicar(cid, accion, extra)
+    return cuentas.aplicar(cid, accion)
 
 
 def _tarjetas():
@@ -380,6 +418,28 @@ def _negocio():
             "metas": [{"id": n["id"], "texto": n["texto"]} for n in sc.ultimas(5, "meta")],
             "decisiones": [{"id": n["id"], "texto": n["texto"]} for n in sc.ultimas(3, "decision")],
             "total": len(sc.ultimas(100000))}
+
+
+def notas(q="", tipo=None, area=None, n=60):
+    """Para la pestaña Cerebro del panel: notas (buscadas o las últimas) y cuántas hay por tipo y área."""
+    from modulos.segundo_cerebro import segundo_cerebro as sc
+    from contextlib import closing
+    tipo = tipo if tipo in sc.TIPOS else None
+    area = area if area in sc.AREAS else None
+    q = " ".join((q or "").split())[:200]
+    lista = [x[0] for x in sc.buscar(q, n=n, tipo=tipo, area=area)] if q else sc.ultimas(n, tipo, area)
+    with closing(sc._con()) as con:
+        filas = con.execute("SELECT tipo, area, COUNT(*) AS c FROM notas WHERE activa = 1 GROUP BY tipo, area").fetchall()
+    por_tipo, por_area = {}, {}
+    for f in filas:
+        por_tipo[f["tipo"]] = por_tipo.get(f["tipo"], 0) + f["c"]
+        por_area[f["area"]] = por_area.get(f["area"], 0) + f["c"]
+    hoy = ahora().date()
+    from modulos.tareas import tareas
+    return {"notas": [{"id": x["id"], "texto": x["texto"], "tipo": x["tipo"], "area": x["area"],
+                       "etiquetas": x["etiquetas"], "origen": x["origen"],
+                       "fecha": tareas.fecha_bonita(x["creado"][:10], hoy)} for x in lista],
+            "por_tipo": por_tipo, "por_area": por_area, "total": sum(por_tipo.values()), "buscado": q}
 
 
 def _empresa():
@@ -529,6 +589,10 @@ class Manejador(BaseHTTPRequestHandler):
             return self._enviar(200, HTML.read_text(encoding="utf-8"), "text/html; charset=utf-8", cookie)
         if url.path == "/api/datos":
             return self._enviar(200, datos())
+        if url.path == "/api/notas":
+            uno = lambda k: (consulta.get(k) or [""])[0]          # noqa: E731
+            return self._enviar(200, _seguro("notas", lambda: notas(uno("q"), uno("tipo") or None, uno("area") or None))
+                                or {"notas": [], "por_tipo": {}, "por_area": {}, "total": 0, "error": True})
         if url.path == "/atajo":
             return self._enviar(200, pagina_atajo(), "text/html; charset=utf-8", cookie)
         if url.path == "/favicon.ico":
@@ -552,6 +616,21 @@ class Manejador(BaseHTTPRequestHandler):
             if accion_habito(str(pedido.get("habito", "")), str(pedido.get("accion", ""))):
                 return self._enviar(200, {"ok": True, "hoy": _seguro("hoy", _hoy)})
             return self._enviar(400, {"error": "hábito o acción desconocidos"})
+        if url.path == "/api/cuenta":
+            try:
+                pedido = json.loads(crudo or b"{}")
+                cid = int(pedido.get("id"))
+            except (ValueError, TypeError):
+                return self._enviar(400, {"error": "pedido inválido"})
+            try:
+                r = accion_cuenta(cid, str(pedido.get("accion", "")), str(pedido.get("extra", "")))
+            except Exception as exc:
+                log.warning("Error al responder un movimiento desde el panel: %s", exc)
+                return self._enviar(500, {"error": str(exc)[:200]})
+            if r is None:
+                return self._enviar(400, {"error": "acción desconocida"})
+            log.info("Movimiento #%s respondido desde el panel: %s", cid, pedido.get("accion"))
+            return self._enviar(200, {"ok": True, "texto": r, "dinero": _seguro("dinero", _dinero)})
         if url.path == "/api/salud":
             texto = texto_de_salud(crudo, self.headers.get("Content-Type") or "")
             from modulos.vida import sueno

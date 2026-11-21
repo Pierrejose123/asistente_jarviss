@@ -298,15 +298,15 @@ noche = datetime(2026, 11, 17, 23, 30, tzinfo=base.ZONA)
 ok(mercado.repartir([(3, "Fed habló"), (2, "dato de empleo")], noche) == [], "de noche se guarda")
 manana = datetime(2026, 11, 18, 6, 5, tzinfo=base.ZONA)
 r = mercado.repartir([], manana)
-ok(len(r) == 1 and "Mientras dormía" in r[0] and "Fed habló" in r[0] and "dato de empleo" in r[0], "mientras dormía: %s" % r)
+ok(len(r) == 2 and "Mientras dormía" in r[0] and "Fed habló" in r[0] and "dato de empleo" in r[1], "mientras dormía (un mensaje por aviso): %s" % r)
 ok(mercado.repartir([], manana) == [], "la cola quedó vacía")
 with mercado.closing(mercado._con()) as con, con:
     con.execute("DELETE FROM mercado_enviados")
 mucho = [(2, "aviso %d" % i) for i in range(9)]
 r = mercado.repartir(mucho, dia)
-ok(len(r) == 1 and r[0].count("aviso") == 6, "cupo de 6 por hora agrupado en un mensaje: %s" % r)
+ok(len(r) == 6 and all(x.count("aviso") == 1 for x in r), "cupo de 6 por hora, un mensaje por aviso: %s" % r)
 r = mercado.repartir([(3, "importante")], dia)
-ok(len(r) == 1 and "importante" in r[0], "prioridad 3 pasa aunque se llene el cupo")
+ok(len(r) >= 1 and "importante" in r[0], "prioridad 3 pasa aunque se llene el cupo: %s" % r)
 ok(len(mercado.agrupar(["x" * 3000, "y" * 3000])) == 2, "parte mensajes largos")
 
 # ---------------------------------------------------------------- 6. cadencia en vivo
@@ -339,6 +339,28 @@ for archivo in (RAIZ / "modulos").rglob("*.py"):
         dup.setdefault(nombre, set()).add(archivo.name)
 for cmd in ("mercado", "macro", "resultados", "agenda_mercado"):
     ok(len(dup.get(cmd, set())) <= 1, "/%s ya lo usa otro módulo: %s" % (cmd, dup.get(cmd)))
+
+# filtros de última hora (19-11): economía primero, cripto con gobiernos, nada de Ecuador sin economía
+def _n(titulo, temas, tipo="mercados", entradilla=""):
+    return {"titulo": titulo, "temas": temas, "tipo": tipo, "entradilla": entradilla}
+ok(mercado._clase_vivo(_n("Fed cuts interest rates by 50 basis points", "Fed y tipos", "economia")) == ("economia", 2),
+   "recorte de la Fed = economía prioridad 2")
+ok(mercado._clase_vivo(_n("SEC approves spot Solana ETF", "Cripto", "cripto")) == ("cripto_gobierno", 2),
+   "cripto con gobierno/regulador = prioridad 2")
+ok(mercado._clase_vivo(_n("Bitcoin se desploma 8 % en una hora", "Cripto", "cripto"))[1] == 2, "desplome de bitcoin pasa")
+ok(mercado._clase_vivo(_n("Secretario de Guerra reafirma apoyo a Ecuador", "Ecuador,Geopolítica", "ecuador")) is None,
+   "Ecuador sin economía no va en vivo")
+ok(mercado._clase_vivo(_n("Nuevo smartphone plegable", "Tecnología", "tecnologia")) is None, "tecnología no va en vivo")
+ok(mercado._clase_vivo(_n("Trump announces 25% tariffs on Mexico", "Trump,Aranceles y comercio", "politica"))[0] == "economia",
+   "aranceles de Trump = economía")
+ok(mercado.misma_historia("Daniel Noboa y Pete Hegseth se reúnen en Quito", "Noboa se reunió con Pete Hegseth en Quito"),
+   "misma historia con otro titular")
+ok(not mercado.misma_historia("Noboa envía proyecto de ley tributaria", "Noboa se reunió con Pete Hegseth en Quito"),
+   "otra historia de Noboa no se junta")
+ok(mercado._clase_vivo(_n("Gold hits record high as Fed rate cut bets grow", "Oro", "economia")) == ("oro", 2), "oro en récord = aviso")
+ok(mercado._clase_vivo(_n("Messi gana el Balón de Oro", "", "mundo")) is None, "Balón de Oro no es el oro")
+ok(mercado._clase_vivo(_n("Bancos centrales compran oro a ritmo récord", "Oro", "economia"))[0] == "oro", "compras de oro de bancos centrales")
+ok(mercado.agrupar(["a", "b"]) == ["a", "b"], "un aviso = un mensaje")
 
 print("Casos:", total)
 if fallos:
