@@ -54,29 +54,33 @@ fechas) los hace el código.
 
 ## Instalación
 
-En PowerShell:
+👉 **Guía completa paso a paso: [INSTALACION.md](INSTALACION.md).** Explica cómo instalar cada parte (Telegram, Google,
+su banco, Moodle, XTB, voz, panel y sueño, Claude…) y, después de cada una, **cómo comprobar que funciona**.
+
+Instalación rápida de la base (en PowerShell):
 
 ```powershell
 git clone https://github.com/pierrejose123/asistente_jarviss.git
 cd asistente_jarviss
 python -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
+ollama pull qwen3.5:9b
+ollama pull qwen3.5:2b
+ollama pull nomic-embed-text
 .\.venv\Scripts\python.exe instalar.py
+.\.venv\Scripts\python.exe modulos\telegram\obtener_user_id.py
+.\.venv\Scripts\python.exe modulos\comun\revisar_entorno.py
+.\.venv\Scripts\python.exe modulos\comun\control.py iniciar
 ```
 
-`instalar.py` crea su `.env`, copia la configuración de ejemplo (`config\*.ejemplo.json` → `config\*.json`) y le
-dice los siguientes pasos:
+En Telegram escriba `/salud`: le dice qué partes tiene funcionando.
 
-1. **Modelos de IA:** `ollama pull qwen3.5:9b`, `ollama pull qwen3.5:2b` y `ollama pull nomic-embed-text`
-   (puede usar otros: se cambian en `config\ia.json` y `config\modos.json`).
-2. **Telegram:** escríbale cualquier cosa a su bot y ejecute
-   `.\.venv\Scripts\python.exe modulos\telegram\obtener_user_id.py`. El asistente solo le responde a usted.
-3. **Revisar:** `.\.venv\Scripts\python.exe modulos\comun\revisar_entorno.py`
-4. **Arrancar:** `.\.venv\Scripts\python.exe modulos\comun\control.py iniciar`
-   (también `estado`, `detener` y `reiniciar`). En Telegram escriba `/ayuda`.
+## Modo juego / diseño
 
-Para que arranque solo con Windows, cree una tarea programada que ejecute
-`.venv\Scripts\pythonw.exe modulos\comun\supervisor.py` al iniciar sesión.
+Cuando abre un juego o un programa de diseño, Jarvis **libera la tarjeta gráfica**: pone la voz en pausa y usa la IA
+chica solo en el procesador. Al cerrarlo, en un minuto vuelve a lo normal. La lista de programas está en
+`config\modos.json` (`"juego"` y `"diseno"`): agregue el nombre del `.exe` de los suyos (lo ve en el Administrador de
+tareas → Detalles). Compruébelo con `/modo` en Telegram. Detalles en [INSTALACION.md](INSTALACION.md#parte-12-modo-juego--diseño-tarjeta-gráfica-libre).
 
 ## Configuración
 
