@@ -17,7 +17,7 @@ Un asistente que le habla por Telegram (y por voz) y se encarga de:
 - **Vigilar sus inversiones y el mercado:** portafolio de XTB, noticias de economía, oro y cripto, con avisos solo cuando importa.
 - **Recordar lo que usted piensa:** un «segundo cerebro» para ideas, planes y decisiones, que busca por significado.
 - **Ver su vida en el teléfono:** un panel con hábitos, sueño (de su banda o reloj vía Apple Health) y dinero.
-- **Ayudarle a emprender:** un agente que investiga su mercado y un equipo de agentes que redacta propuestas y posts.
+- **Un equipo de agentes:** un «CEO» reparte el trabajo y le entrega propuestas, posts, informes y planes.
 - **Trabajar con Claude (opcional):** Claude puede consultar y usar todo esto sin que sus datos salgan de su PC.
 
 ## Qué hace (detalle)
@@ -34,7 +34,6 @@ Un asistente que le habla por Telegram (y por voz) y se encarga de:
 | **Mercado en vivo** | Prioriza la **economía de EE. UU.** (Fed, inflación, empleo, aranceles, datos de FRED). Caídas de índices con su historia, resultados de sus empresas contra lo esperado. **Oro**: avisos al moverse ±1,5 %, al romper máximos o mínimos de 52 semanas y en récords. **Bitcoin y Ethereum**: avisos al moverse ±3 % (24/7) y noticias de cripto con gobiernos y reguladores. Cada noticia en su propio mensaje con «📌 lo importante» y «💡 por qué importa». Responda a una noticia y pregunte «¿vendo?»: le da criterios (si está confirmada, gravedad, peso en su cartera, qué vigilar), nunca órdenes. Junta los avisos para no llenarle de mensajes; modos «más/menos noticias» y «silencio hasta mañana» |
 | **Segundo cerebro** | «idea: …», «plan: …», «decidí …», «aprendí que …» por chat o voz; lo ordena solo, lo busca por palabras y por significado («¿qué había pensado sobre los precios?»), lo usa como contexto y cada domingo propone lo que aprendió de usted |
 | **Panel «Mi vida»** | Página para el teléfono y la PC (privada, por Tailscale y con clave): hábitos con rachas, sueño, pasos, pulso y VFC de su banda o reloj (atajo del iPhone vía Apple Health), dinero, movimientos por responder, deberes y notas |
-| **Empresa (emprender)** | Agente que cada 6 h busca noticias de IA, herramientas nuevas y lo que publican sus competidores; propone competidores nuevos; informe semanal con oportunidades, acciones y borradores para Instagram y TikTok; «hazme un post sobre X» |
 | **Equipo de agentes** | Un «CEO» reparte el trabajo entre investigador, analista, redactor, organizador y revisor: propuestas comerciales, posts, informes y planes en un archivo; trabajos programados («cada lunes que el equipo…») y aprende de «no era eso» |
 | **Biblioteca** | Aprende de sus PDF, Word, PowerPoint y transcripciones, y responde con esa información |
 | **Voz** | «Hey Jarvis» con Whisper (en la tarjeta gráfica si tiene NVIDIA) y voz de Edge, notas de voz por Telegram |
@@ -103,7 +102,7 @@ Para que arranque solo con Windows, cree una tarea programada que ejecute
 | `ia.json`, `modos.json`, `voz.json` | Modelo de IA, programas de «modo juego/diseño», micrófono y voz |
 | `memoria_inicial.json` | Datos suyos que la IA debe saber desde el primer día |
 | `bancos.json` | Remitentes y asuntos de los correos de su banco (estados de cuenta de tarjetas, transferencias) |
-| `vida.json`, `empresa.json`, `equipo.json` | Hábitos y hora de dormir del panel, su negocio y búsquedas del agente de empresa, carpeta del equipo de agentes. Se crean solos la primera vez con valores por defecto |
+| `vida.json`, `equipo.json` | Hábitos y hora de dormir del panel, carpeta del equipo de agentes. Se crean solos la primera vez con valores por defecto |
 
 ## Google (Calendar y Gmail, opcional)
 
@@ -167,8 +166,7 @@ modulos/
   proactivo/  planificador                resumen/    resumen de la mañana y la noche
   voz/        «Hey Jarvis»                comun/      base, salud, PC, respaldo, modos
   claude_mcp/ servidor MCP para Claude    segundo_cerebro/ ideas, planes y decisiones
-  vida/       panel «Mi vida» y sueño     empresa/    agente que investiga su mercado
-  equipo/     equipo de agentes (CEO)
+  vida/       panel «Mi vida» y sueño     equipo/     equipo de agentes (CEO)
 config/       configuración (*.ejemplo.json)
 ```
 

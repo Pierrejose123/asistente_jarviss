@@ -41,7 +41,10 @@ from modulos.comun import telegram_salud  # noqa: E402
 from modulos.proactivo import telegram_proactivo  # noqa: E402
 from modulos.segundo_cerebro import telegram_cerebro  # noqa: E402
 from modulos.vida import telegram_vida  # noqa: E402
-from modulos.empresa import telegram_empresa  # noqa: E402
+try:                                   # el agente de empresa es privado: la copia pública no lo trae
+    from modulos.empresa import telegram_empresa  # noqa: E402
+except ImportError:
+    telegram_empresa = None
 from modulos.equipo import telegram_equipo  # noqa: E402
 from modulos.clientes import telegram_mediacion  # noqa: E402
 from modulos.comun.base import (DIAS, DIAS_BONITO, TOKEN, USER_ID, ZONA, ahora,  # noqa: E402
@@ -72,7 +75,7 @@ COMANDOS = [
     ("olvidar", "Reiniciar el hilo de la conversaci\u00f3n"),
     ("ayuda", "Lista de comandos"),
 ]
-COMANDOS[-1:-1] = telegram_alertas.COMANDOS + telegram_salud.COMANDOS + telegram_proactivo.COMANDOS + telegram_noticias.COMANDOS + telegram_cava.COMANDOS + telegram_finanzas.COMANDOS + telegram_moodle.COMANDOS + telegram_ingles.COMANDOS + telegram_portafolio.COMANDOS + telegram_cerebro.COMANDOS + telegram_vida.COMANDOS + telegram_empresa.COMANDOS + telegram_equipo.COMANDOS + telegram_mediacion.COMANDOS      # antes de /ayuda
+COMANDOS[-1:-1] = telegram_alertas.COMANDOS + telegram_salud.COMANDOS + telegram_proactivo.COMANDOS + telegram_noticias.COMANDOS + telegram_cava.COMANDOS + telegram_finanzas.COMANDOS + telegram_moodle.COMANDOS + telegram_ingles.COMANDOS + telegram_portafolio.COMANDOS + telegram_cerebro.COMANDOS + telegram_vida.COMANDOS + (telegram_empresa.COMANDOS if telegram_empresa else []) + telegram_equipo.COMANDOS + telegram_mediacion.COMANDOS      # antes de /ayuda
 
 
 MARCA = {"": "", "movida": " <i>(movida)</i>", "cancelada": " <s>cancelada</s>"}
@@ -601,7 +604,8 @@ async def al_iniciar(app: Application):
     telegram_proactivo.programar(app.job_queue)
     telegram_cerebro.programar(app.job_queue)
     telegram_vida.programar(app.job_queue)
-    telegram_empresa.programar(app.job_queue)
+    if telegram_empresa:
+        telegram_empresa.programar(app.job_queue)
     telegram_equipo.programar(app.job_queue)
     await app.bot.send_message(USER_ID, "\U0001F7E2 Asistente en l\u00ednea, se\u00f1or. Escriba /ayuda.")
     log.info("Bot iniciado")
@@ -642,7 +646,8 @@ def main():
     telegram_proactivo.registrar(app)
     telegram_cerebro.registrar(app)
     telegram_vida.registrar(app)
-    telegram_empresa.registrar(app)
+    if telegram_empresa:
+        telegram_empresa.registrar(app)
     telegram_equipo.registrar(app)
     telegram_mediacion.registrar(app)
     telegram_ingles.registrar(app)                 # antes del manejador general de botones

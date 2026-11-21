@@ -349,7 +349,7 @@ function pintarDinero(){
 /* ---------------- EMPRESA / EQUIPO ---------------- */
 function copiar(i){const t=D.empresa.borradores[i].texto;navigator.clipboard&&navigator.clipboard.writeText(t).then(()=>alert("Copiado"),()=>{})}
 function pintarEmpresa(){
-  const e=D.empresa;if(!e){$("#v-empresa").innerHTML=tarjeta("Empresa",'<div class="vacio">Sin datos.</div>');return;}
+  const e=D.empresa;{const b=document.querySelector('[data-v="empresa"]');if(b)b.style.display=e?"":"none";}if(!e){$("#v-empresa").innerHTML=tarjeta("Empresa",'<div class="vacio">Sin datos.</div>');return;}
   let h="";const inf=e.informe,cu=e.informe_cuando||{};
   if(inf){
     h+=tarjeta("Informe de la semana",`<div>${esc(inf.resumen)}</div>`,esc(inf.fecha));
